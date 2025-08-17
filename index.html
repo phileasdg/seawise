@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Map Viewer</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Leaflet CSS and JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- i-Boating / BLC Maps SDK -->
+    <link rel='stylesheet' href='https://fishing-app.gpsnauticalcharts.com/i-boating-fishing-marine-navigation-sdk/5.5/blc-maps.css' />
+    <script src='https://fishing-app.gpsnauticalcharts.com/i-boating-fishing-marine-navigation-sdk/5.5/blc-maps.js'></script>
+
+    <style>
+        /* Custom base styles */
+        body {
+            font-family: 'Inter', sans-serif;
+            overflow: hidden; /* Prevent body scroll */
+        }
+        #map {
+            width: 100vw;
+            height: 100vh;
+        }
+        /* Custom Leaflet styles */
+        .leaflet-popup-content-wrapper {
+            border-radius: 8px;
+        }
+        .leaflet-popup-content {
+            font-size: 14px;
+        }
+        /* Style for the GL layer to ensure interactions */
+        .leaflet-gl-layer {
+            pointer-events: auto;
+        }
+        /* Transition for collapsible panels */
+        .collapsible-panel {
+            transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out;
+        }
+        .panel-collapsed {
+            transform: translateX(-100%);
+            opacity: 0;
+            pointer-events: none;
+        }
+        .controls-collapsed {
+            transform: translateX(100%);
+            opacity: 0;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+
+    <!-- Map Container -->
+    <div id="map"></div>
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="fixed top-5 right-5 z-[2000] space-y-2"></div>
+
+    <!-- Info Panel (Left) -->
+    <div class="fixed top-3 left-3 z-[1000] flex items-start">
+        <div id="info-panel-container" class="collapsible-panel bg-white/90 backdrop-blur-sm rounded-l-xl shadow-lg p-4 max-w-sm w-full md:w-auto">
+            <div class="space-y-3">
+                <h3 class="text-lg font-bold text-gray-800 border-b pb-2">Map Viewer</h3>
+                <p class="text-sm text-gray-600">Switch layers and search for locations around the world.</p>
+                <div>
+                    <span class="font-semibold text-sm">Location:</span>
+                    <span id="current-location" class="text-sm text-gray-700">San Francisco Bay</span>
+                </div>
+                <div class="flex items-center">
+                    <span id="nautical-status-indicator" class="h-2.5 w-2.5 rounded-full mr-2 bg-yellow-400"></span>
+                    <span id="nautical-status-text" class="text-sm text-gray-700">Nautical charts require a valid token.</span>
+                </div>
+            </div>
+        </div>
+        <button id="info-toggle" class="bg-white/90 backdrop-blur-sm p-2 rounded-r-xl shadow-lg text-gray-600 hover:text-black">
+            <!-- SVG Icon for toggle -->
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+        </button>
+    </div>
+
+    <!-- Controls Panel (Right) -->
+    <div class="fixed top-3 right-3 z-[1000] flex items-start">
+        <button id="controls-toggle" class="bg-white/90 backdrop-blur-sm p-2 rounded-l-xl shadow-lg text-gray-600 hover:text-black">
+             <!-- SVG Icon for toggle -->
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+        </button>
+        <div id="controls-panel-container" class="collapsible-panel bg-white/90 backdrop-blur-sm rounded-r-xl shadow-lg p-4 max-w-sm w-full md:w-auto">
+            <div class="space-y-4">
+                <!-- Location Search -->
+                <div>
+                    <label for="location-search" class="font-semibold text-gray-800 text-sm">Location Search</label>
+                    <div class="flex items-center mt-2 space-x-2">
+                        <input type="text" id="location-search" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" placeholder="e.g., Boston Harbor">
+                        <button id="search-btn" class="p-2 text-sm font-semibold text-white bg-blue-600 rounded-md shadow-sm hover:bg-blue-500">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                        </button>
+                    </div>
+                </div>
+                <!-- Layer Controls -->
+                <div>
+                    <label class="font-semibold text-gray-800 text-sm">Map Layers</label>
+                    <div class="mt-2 grid grid-cols-2 gap-2">
+                        <div class="flex items-center"><input type="radio" id="nautical" name="baselayer" value="nautical" class="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"><label for="nautical" class="ml-2 text-sm text-gray-700">Nautical</label></div>
+                        <div class="flex items-center"><input type="radio" id="satellite" name="baselayer" value="satellite" class="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"><label for="satellite" class="ml-2 text-sm text-gray-700">Satellite</label></div>
+                        <div class="flex items-center"><input type="radio" id="osm" name="baselayer" value="osm" checked class="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"><label for="osm" class="ml-2 text-sm text-gray-700">Street</label></div>
+                        <div class="flex items-center"><input type="radio" id="terrain" name="baselayer" value="terrain" class="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"><label for="terrain" class="ml-2 text-sm text-gray-700">Terrain</label></div>
+                    </div>
+                </div>
+                <!-- Quick Locations -->
+                <div>
+                    <label class="font-semibold text-gray-800 text-sm">Quick Locations</label>
+                    <div class="grid grid-cols-2 gap-2 mt-2">
+                        <button onclick="goToLocation(37.8269, -122.3990, 'San Francisco Bay')" class="location-btn">SF Bay</button>
+                        <button onclick="goToLocation(25.7617, -80.1918, 'Miami Beach')" class="location-btn">Miami</button>
+                        <button onclick="goToLocation(41.3851, -71.4774, 'Narragansett Bay')" class="location-btn">Narragansett</button>
+                        <button onclick="goToLocation(43.6532, -70.2518, 'Casco Bay, ME')" class="location-btn">Casco Bay</button>
+                    </div>
+                </div>
+                <!-- Map Tools -->
+                <div>
+                    <label class="font-semibold text-gray-800 text-sm">Map Tools</label>
+                    <div class="grid grid-cols-1 gap-2 mt-2">
+                        <button onclick="getCurrentLocation()" class="tool-btn"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline mr-1"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>My Location</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Coordinates Display -->
+    <div class="fixed bottom-2 left-1/2 -translate-x-1/2 z-[1000] bg-gray-800/80 text-white text-xs font-mono px-3 py-1.5 rounded-md shadow-lg">
+        <span id="coordinates">Lat: 37.8269, Lng: -122.3990</span>
+    </div>
+
+    <script>
+        // Apply Tailwind classes to buttons dynamically for cleaner HTML
+        document.querySelectorAll('.location-btn').forEach(btn => {
+            btn.className = 'px-3 py-2 text-sm font-medium text-center text-gray-700 bg-gray-100 rounded-md shadow-sm hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500';
+        });
+        document.querySelectorAll('.tool-btn').forEach(btn => {
+            btn.className = 'px-3 py-2 text-sm font-medium text-center text-white bg-gray-600 rounded-md shadow-sm hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 flex items-center justify-center';
+        });
+
+        // --- BLC Maps Adapter (i-Boating) ---
+        // This adapter is required to make the BLC GL library compatible with Leaflet.
+        (function (root, factory) {
+            if (typeof define === 'function' && define.amd) {
+                define(['leaflet', 'blc-maps'], factory);
+            } else if (typeof exports === 'object') {
+                module.exports = factory(require('leaflet'), require('blc-maps'));
+            } else {
+                root.returnExports = factory(window.L, window.blcgl);
+            }
+        }(this, function (L, blcgl) {
+            if (!L || !L.Layer) return;
+            L.BlcGL = L.Layer.extend({
+                options: { updateInterval: 32, padding: 0.1, interactive: false, pane: 'tilePane' },
+                initialize: function (options) {
+                    L.setOptions(this, options);
+                    if (options.blc_access_token) blcgl.accessToken = options.blc_access_token;
+                    this._throttledUpdate = L.Util.throttle(this._update, this.options.updateInterval, this);
+                },
+                onAdd: function (map) {
+                    if (!this._container) this._initContainer();
+                    map.getPane(this.getPaneName()).appendChild(this._container);
+                    this._initGL();
+                    this._offset = this._map.containerPointToLayerPoint([0, 0]);
+                    if (map.options.zoomAnimation) L.DomEvent.on(map._proxy, L.DomUtil.TRANSITION_END, this._transitionEnd, this);
+                    if (map._addZoomLimit) map._addZoomLimit(this);
+                },
+                onRemove: function (map) {
+                    if (this._map._proxy && this._map.options.zoomAnimation) L.DomEvent.off(this._map._proxy, L.DomUtil.TRANSITION_END, this._transitionEnd, this);
+                    var paneName = this.getPaneName();
+                    if (map.getPane(paneName) && this._container) map.getPane(paneName).removeChild(this._container);
+                    if (this._glMap && this._glMap.remove) this._glMap.remove();
+                },
+                getEvents: function () { return { move: this._throttledUpdate, zoomanim: this._animateZoom, zoom: this._pinchZoom, zoomstart: this._zoomStart, zoomend: this._zoomEnd, resize: this._resize }; },
+                getBlcGLMap: function () { return this._glMap; },
+                getCanvas: function () { return this._glMap ? this._glMap.getCanvas() : null; },
+                getSize: function () { return this._map.getSize().multiplyBy(1 + this.options.padding * 2); },
+                getBounds: function () {
+                    var halfSize = this.getSize().multiplyBy(0.5);
+                    var center = this._map.latLngToContainerPoint(this._map.getCenter());
+                    return L.latLngBounds(this._map.containerPointToLatLng(center.subtract(halfSize)), this._map.containerPointToLatLng(center.add(halfSize)));
+                },
+                getContainer: function () { return this._container; },
+                getPaneName: function () { return this._map.getPane(this.options.pane) ? this.options.pane : 'tilePane'; },
+                _initContainer: function () {
+                    var container = this._container = L.DomUtil.create('div', 'leaflet-gl-layer');
+                    var size = this.getSize();
+                    var offset = this._map.getSize().multiplyBy(this.options.padding);
+                    container.style.width  = size.x + 'px';
+                    container.style.height = size.y + 'px';
+                    var topLeft = this._map.containerPointToLayerPoint([0, 0]).subtract(offset);
+                    L.DomUtil.setPosition(container, topLeft);
+                },
+                _initGL: function () {
+                    var center = this._map.getCenter();
+                    var options = L.extend({}, this.options, { container: this._container, center: [center.lng, center.lat], zoom: this._map.getZoom() - 1, blc_enable_leaflet_compatibility: true, attributionControl: false });
+                    try {
+                        if (!this._glMap && window.blcgl && window.blcgl.external_to_js) this._glMap = new blcgl.external_to_js.blcCreateMapObject(options);
+                        else if (this._glMap) { this._glMap.setCenter(options.center); this._glMap.setZoom(options.zoom); }
+                        if (this._glMap) {
+                            this._glMap.transform.latRange = null; this._transformGL(this._glMap);
+                            this._glMap._actualCanvas = this._glMap._canvas.canvas || this._glMap._canvas || (this._glMap.getCanvas ? this._glMap.getCanvas() : null);
+                            if (this._glMap._actualCanvas) {
+                                var canvas = this._glMap._actualCanvas;
+                                L.DomUtil.addClass(canvas, 'leaflet-image-layer leaflet-zoom-animated');
+                                if (this.options.interactive) L.DomUtil.addClass(canvas, 'leaflet-interactive');
+                                if (this.options.className) L.DomUtil.addClass(canvas, this.options.className);
+                            }
+                        }
+                    } catch (error) { console.error('Error initializing BLC GL Map:', error); throw error; }
+                },
+                _update: function (e) {
+                    if (!this._map || !this._glMap) return;
+                    this._offset = this._map.containerPointToLayerPoint([0, 0]);
+                    if (this._zooming) return;
+                    var size = this.getSize(), container = this._container, gl = this._glMap, offset = this._map.getSize().multiplyBy(this.options.padding), topLeft = this._map.containerPointToLayerPoint([0, 0]).subtract(offset);
+                    L.DomUtil.setPosition(container, topLeft);
+                    this._transformGL(gl);
+                    var x_round = Math.round(size.x), y_round = Math.round(size.y);
+                    if (Math.round(gl.transform.width) !== x_round || Math.round(gl.transform.height) !== y_round) {
+                        container.style.width  = x_round + 'px'; container.style.height = y_round + 'px';
+                        if (gl._resize) gl._resize(); else if (gl.resize) gl.resize();
+                    } else {
+                        if (gl._update) gl._update(); else if (gl.update) gl.update();
+                    }
+                },
+                _transformGL: function (gl) {
+                    if (!gl || !gl.transform) return;
+                    var center = this._map.getCenter(); var tr = gl.transform;
+                    if (blcgl && blcgl.LngLat && blcgl.LngLat.convert) tr.center = blcgl.LngLat.convert([center.lng, center.lat]);
+                    else tr.center = {lng: center.lng, lat: center.lat};
+                    tr.zoom = this._map.getZoom() - 1;
+                },
+                _pinchZoom: function (e) { if (this._glMap && this._glMap.jumpTo) this._glMap.jumpTo({ zoom: this._map.getZoom() - 1, center: this._map.getCenter() }); },
+                _animateZoom: function (e) {
+                    if (!this._glMap || !this._glMap._actualCanvas) return;
+                    var scale = this._map.getZoomScale(e.zoom), padding = this._map.getSize().multiplyBy(this.options.padding * scale), viewHalf = this.getSize()._divideBy(2);
+                    var topLeft = this._map.project(e.center, e.zoom)._subtract(viewHalf)._add(this._map._getMapPanePos().add(padding))._round();
+                    var offset = this._map.project(this._map.getBounds().getNorthWest(), e.zoom)._subtract(topLeft);
+                    L.DomUtil.setTransform(this._glMap._actualCanvas, offset.subtract(this._offset), scale);
+                },
+                _zoomStart: function (e) { this._zooming = true; },
+                _zoomEnd: function () {
+                    if (!this._glMap || !this._glMap._actualCanvas) return;
+                    var scale = this._map.getZoomScale(this._map.getZoom());
+                    L.DomUtil.setTransform(this._glMap._actualCanvas, null, scale);
+                    this._zooming = false; this._update();
+                },
+                _transitionEnd: function (e) {
+                    var self = this;
+                    L.Util.requestAnimFrame(function () {
+                        if (!self._glMap) return;
+                        var zoom = self._map.getZoom(), center = self._map.getCenter(), offset = self._map.latLngToContainerPoint(self._map.getBounds().getNorthWest());
+                        if (self._glMap._actualCanvas) L.DomUtil.setTransform(self._glMap._actualCanvas, offset, 1);
+                        if (self._glMap.once && self._glMap.jumpTo) {
+                            self._glMap.once('moveend', L.Util.bind(function () { self._zoomEnd(); }, self));
+                            self._glMap.jumpTo({ center: center, zoom: zoom - 1 });
+                        }
+                    });
+                },
+                _resize: function (e) { this._transitionEnd(e); }
+            });
+            L.blcGL = function (options) { return new L.BlcGL(options); };
+            return L.BlcGL;
+        }));
+
+        // --- Application Logic ---
+
+        // Global variables
+        let map;
+        let nauticalLayer = null;
+        let currentBaseLayer = null;
+        const BLC_MAPS_TOKEN = 'wYhXj07uz1kfDTKR1qxuBn'; // Default i-Boating token
+
+        // Base layer definitions
+        const baseLayers = {
+            osm: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }),
+            satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                maxZoom: 18,
+                attribution: '&copy; Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+            }),
+            terrain: L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+                maxZoom: 17,
+                attribution: 'Map data: &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, <a href="http://viewfinderpanoramas.org">SRTM</a> | Map style: &copy; <a href="https://opentopomap.org">OpenTopoMap</a> (CC-BY-SA)'
+            })
+        };
+
+        /**
+         * Initializes the Leaflet map and its components.
+         */
+        function initializeMap() {
+            map = L.map('map', {
+                zoomControl: false // We will add it manually in a different position
+            }).setView([37.8269, -122.3990], 13);
+
+            // Add map controls
+            L.control.zoom({ position: 'bottomright' }).addTo(map);
+            L.control.scale({ position: 'bottomleft' }).addTo(map);
+
+            // Default to nautical charts on load
+            document.getElementById('nautical').checked = true;
+            document.getElementById('osm').checked = false;
+            switchToLayer('nautical');
+        }
+
+        /**
+         * Switches the active map layer.
+         * @param {string} layerType - The key of the layer to switch to ('osm', 'satellite', etc.).
+         */
+        function switchToLayer(layerType) {
+            // Remove current layers
+            if (currentBaseLayer) map.removeLayer(currentBaseLayer);
+            if (nauticalLayer) map.removeLayer(nauticalLayer);
+            
+            currentBaseLayer = null;
+            nauticalLayer = null;
+
+            if (layerType === 'nautical') {
+                if (!createNauticalLayer()) {
+                    // Fallback to OSM if nautical layer fails
+                    showToast('Failed to load nautical charts. Falling back to Street View.', 'error');
+                    document.getElementById('osm').checked = true;
+                    currentBaseLayer = baseLayers.osm;
+                    currentBaseLayer.addTo(map);
+                }
+            } else {
+                currentBaseLayer = baseLayers[layerType];
+                if (currentBaseLayer) {
+                    currentBaseLayer.addTo(map);
+                    updateNauticalStatus('warning', 'Nautical charts are not active.');
+                }
+            }
+        }
+
+        /**
+         * Creates and adds the i-Boating nautical chart layer to the map.
+         * @returns {boolean} - True if successful, false otherwise.
+         */
+        function createNauticalLayer() {
+            if (!BLC_MAPS_TOKEN) {
+                updateNauticalStatus('error', 'Access token is missing.');
+                return false;
+            }
+            try {
+                nauticalLayer = L.blcGL({
+                    blc_access_token: BLC_MAPS_TOKEN,
+                    interactive: true,
+                    padding: 0.1
+                });
+                map.addLayer(nauticalLayer);
+                updateNauticalStatus('success', 'Nautical charts are active.');
+                return true;
+            } catch (error) {
+                console.error('Nautical layer error:', error);
+                updateNauticalStatus('error', `Error: ${error.message}`);
+                return false;
+            }
+        }
+        
+        /**
+         * Updates the status indicator and text for the nautical layer.
+         * @param {string} type - 'success', 'error', or 'warning'.
+         * @param {string} message - The text to display.
+         */
+        function updateNauticalStatus(type, message) {
+            const indicator = document.getElementById('nautical-status-indicator');
+            const text = document.getElementById('nautical-status-text');
+            indicator.className = 'h-2.5 w-2.5 rounded-full mr-2 ';
+            if (type === 'success') indicator.classList.add('bg-green-500');
+            else if (type === 'error') indicator.classList.add('bg-red-500');
+            else indicator.classList.add('bg-yellow-400');
+            text.textContent = message;
+        }
+
+        // --- Map Interaction Functions ---
+
+        window.goToLocation = (lat, lng, name) => {
+            map.setView([lat, lng], 13);
+            document.getElementById('current-location').textContent = name;
+        };
+
+        window.getCurrentLocation = () => {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(position => {
+                    const { latitude, longitude } = position.coords;
+                    goToLocation(latitude, longitude, 'Your Location');
+                    showToast('Location found!', 'success');
+                }, () => {
+                    showToast('Unable to retrieve your location.', 'error');
+                });
+            } else {
+                showToast('Geolocation is not supported by this browser.', 'error');
+            }
+        };
+        
+        /**
+         * Searches for a location using Nominatim API and moves the map.
+         */
+        async function searchLocation() {
+            const query = document.getElementById('location-search').value;
+            if (!query) {
+                showToast('Please enter a location to search.', 'info');
+                return;
+            }
+            const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`;
+            showToast('Searching...', 'info');
+            try {
+                const response = await fetch(url);
+                if (!response.ok) throw new Error('Network response was not ok.');
+                const data = await response.json();
+                if (data && data.length > 0) {
+                    const { lat, lon, display_name } = data[0];
+                    const locationName = display_name.split(',').slice(0, 2).join(',');
+                    goToLocation(parseFloat(lat), parseFloat(lon), locationName);
+                    showToast(`Found: ${locationName}`, 'success');
+                } else {
+                    showToast('Location not found.', 'error');
+                }
+            } catch (error) {
+                console.error('Search error:', error);
+                showToast('Failed to fetch location data.', 'error');
+            }
+        }
+        
+        // --- UI and Event Handlers ---
+
+        function setupEventListeners() {
+            // Layer switcher
+            document.querySelectorAll('input[name="baselayer"]').forEach(radio => {
+                radio.addEventListener('change', (e) => switchToLayer(e.target.value));
+            });
+            
+            // Location Search
+            document.getElementById('search-btn').addEventListener('click', searchLocation);
+            document.getElementById('location-search').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') searchLocation();
+            });
+
+            // Map events
+            map.on('mousemove', e => {
+                document.getElementById('coordinates').textContent = `Lat: ${e.latlng.lat.toFixed(5)}, Lng: ${e.latlng.lng.toFixed(5)}`;
+            });
+            
+            // Panel toggles
+            document.getElementById('info-toggle').addEventListener('click', () => {
+                document.getElementById('info-panel-container').classList.toggle('panel-collapsed');
+            });
+            document.getElementById('controls-toggle').addEventListener('click', () => {
+                document.getElementById('controls-panel-container').classList.toggle('controls-collapsed');
+            });
+        }
+
+        /**
+         * Displays a toast notification.
+         * @param {string} message - The message to show.
+         * @param {string} type - 'info', 'success', or 'error'.
+         */
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            
+            let bgColor, textColor, iconSVG;
+            switch (type) {
+                case 'success':
+                    bgColor = 'bg-green-500'; textColor = 'text-white';
+                    iconSVG = `<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>`;
+                    break;
+                case 'error':
+                    bgColor = 'bg-red-500'; textColor = 'text-white';
+                    iconSVG = `<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path></svg>`;
+                    break;
+                default:
+                    bgColor = 'bg-blue-500'; textColor = 'text-white';
+                    iconSVG = `<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path></svg>`;
+            }
+
+            toast.className = `flex items-center w-full max-w-xs p-4 space-x-4 ${textColor} ${bgColor} rounded-lg shadow-lg transform transition-all duration-300 translate-x-full opacity-0`;
+            toast.innerHTML = `<div class="flex-shrink-0">${iconSVG}</div><div class="text-sm font-medium">${message}</div>`;
+            container.appendChild(toast);
+
+            // Animate in
+            setTimeout(() => {
+                toast.classList.remove('translate-x-full', 'opacity-0');
+            }, 100);
+
+            // Animate out and remove
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-x-full');
+                toast.addEventListener('transitionend', () => toast.remove());
+            }, 4000);
+        }
+
+        /**
+         * Waits for the BLC library to be available before initializing the map.
+         */
+        function waitForBlcAndInitialize() {
+            const maxRetries = 20; // 10 seconds max wait
+            let retries = 0;
+            const interval = setInterval(() => {
+                if (typeof window.blcgl !== 'undefined' && window.blcgl.external_to_js) {
+                    clearInterval(interval);
+                    console.log('BLC library loaded. Initializing map.');
+                    initializeMap();
+                    setupEventListeners();
+                } else {
+                    retries++;
+                    if (retries > maxRetries) {
+                        clearInterval(interval);
+                        console.error('BLC library failed to load.');
+                        showToast('Nautical chart library failed to load. Some features may not work.', 'error');
+                        // Initialize without BLC features if it fails
+                        initializeMap();
+                        setupEventListeners();
+                    }
+                }
+            }, 500);
+        }
+
+        // Start the application
+        document.addEventListener('DOMContentLoaded', waitForBlcAndInitialize);
+
+    </script>
+</body>
+</html>
