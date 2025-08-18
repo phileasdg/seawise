@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple GIBS Layer Viewer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: sans-serif;
+            background-color: #1a202c;
+        }
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+        #controls {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(26, 32, 44, 0.8);
+            backdrop-filter: blur(10px);
+            padding: 10px;
+            border-radius: 8px;
+            z-index: 1000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        #layer-select {
+            background-color: #2d3748;
+            color: #e2e8f0;
+            border: 1px solid #4a5568;
+            border-radius: 6px;
+            padding: 8px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="map"></div>
+
+    <div id="controls">
+        <label for="layer-select" class="text-white font-medium">Select a GIBS Layer:</label>
+        <select id="layer-select">
+            <option value="">Loading layers...</option>
+        </select>
+    </div>
+
+    <script>
+        // --- Global Variables ---
+        let map;
+        let currentLayer = null;
+        const gibsMetadata = {};
+
+        /**
+         * Initializes the Leaflet map with a default view.
+         */
+        function initializeMap() {
+            map = L.map('map').setView([0, 0], 2);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(map);
+        }
+
+        /**
+         * Fetches and parses the GIBS capabilities XML to populate layer data.
+         */
+        async function loadGibsLayers() {
+            // CORRECTED: Use the EPSG:3857 (Web Mercator) endpoint to match Leaflet's default CRS.
+            const capabilitiesUrl = 'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/1.0.0/WMTSCapabilities.xml';
+            
+            try {
+                const response = await fetch(capabilitiesUrl);
+                const xmlText = await response.text();
+                const parser = new DOMParser();
+                const xmlDoc = parser.parseFromString(xmlText, "text/xml");
+                const layers = xmlDoc.querySelectorAll('Layer');
+
+                layers.forEach(layer => {
+                    const identifier = layer.querySelector('Identifier')?.textContent;
+                    const title = layer.querySelector('Title')?.textContent;
+                    const format = layer.querySelector('Format')?.textContent.split('/')[1] || 'jpeg';
+                    const tileMatrixSet = layer.querySelector('TileMatrixSetLink > TileMatrixSet')?.textContent;
+                    const resourceUrlNode = layer.querySelector('ResourceURL[resourceType="tile"]');
+                    const template = resourceUrlNode?.getAttribute('template');
+                    
+                    const dateNodes = layer.querySelectorAll('Dimension > Value');
+                    let mostRecentDate = layer.querySelector('Dimension > Default')?.textContent;
+                    if (dateNodes.length > 0) {
+                        const lastDateNode = dateNodes[dateNodes.length - 1];
+                        const dateRange = lastDateNode.textContent.split('/');
+                        mostRecentDate = dateRange[1] || dateRange[0];
+                    }
+                    if (!mostRecentDate) {
+                        mostRecentDate = new Date().toISOString().split('T')[0];
+                    }
+                    
+                    if (identifier && title && tileMatrixSet && template) {
+                        gibsMetadata[identifier] = { title, format, tileMatrixSet, date: mostRecentDate, template };
+                    }
+                });
+                
+                populateLayerDropdown();
+
+            } catch (error) {
+                console.error("Failed to load or parse GIBS capabilities:", error);
+                document.getElementById('layer-select').innerHTML = '<option value="">Error loading layers</option>';
+            }
+        }
+
+        /**
+         * Populates the dropdown with the loaded GIBS layers.
+         */
+        function populateLayerDropdown() {
+            const select = document.getElementById('layer-select');
+            select.innerHTML = '<option value="">-- Select a Layer --</option>'; // Clear loading message
+
+            // Sort layers alphabetically by title
+            const sortedLayers = Object.keys(gibsMetadata).sort((a, b) => {
+                return gibsMetadata[a].title.localeCompare(gibsMetadata[b].title);
+            });
+
+            sortedLayers.forEach(identifier => {
+                const option = document.createElement('option');
+                option.value = identifier;
+                option.textContent = gibsMetadata[identifier].title;
+                select.appendChild(option);
+            });
+        }
+
+        /**
+         * Removes the current layer and adds the newly selected one.
+         * @param {string} identifier - The identifier of the GIBS layer to display.
+         */
+        function switchToLayer(identifier) {
+            if (currentLayer) {
+                map.removeLayer(currentLayer);
+                currentLayer = null;
+            }
+
+            if (!identifier || !gibsMetadata[identifier]) {
+                return;
+            }
+
+            const meta = gibsMetadata[identifier];
+            const templateUrl = meta.template
+                .replace('{Time}', meta.date)
+                .replace('{TileMatrixSet}', meta.tileMatrixSet)
+                .replace('{TileMatrix}', '{z}')
+                .replace('{TileRow}', '{y}')
+                .replace('{TileCol}', '{x}');
+
+            currentLayer = L.tileLayer(templateUrl, {
+                attribution: '<a href="https://earthdata.nasa.gov/gibs">NASA GIBS</a>',
+                transparent: meta.format === 'png',
+                noWrap: true,
+                continuousWorld: true,
+                subdomains: 'abc' // As seen in GIBS examples
+            });
+
+            currentLayer.addTo(map);
+        }
+
+        // --- Event Listeners and Initialization ---
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeMap();
+            loadGibsLayers();
+            
+            document.getElementById('layer-select').addEventListener('change', (e) => {
+                switchToLayer(e.target.value);
+            });
+        });
+
+        /*
+        * Workaround for 1px lines appearing in some browsers due to fractional transforms
+        * and resulting anti-aliasing.
+        * https://github.com/Leaflet/Leaflet/issues/3575
+        */
+        (function () {
+            var originalInitTile = L.GridLayer.prototype._initTile;
+            L.GridLayer.include({
+                _initTile: function (tile) {
+                    originalInitTile.call(this, tile);
+                    var tileSize = this.getTileSize();
+                    tile.style.width = tileSize.x + 1 + 'px';
+                    tile.style.height = tileSize.y + 1 + 'px';
+                }
+            });
+        })();
+    </script>
+</body>
+</html>

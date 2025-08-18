@@ -3,181 +3,89 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Seawise - Premium Marine Navigation</title>
-
-    <!-- Tailwind CSS -->
+    <title>Sailing Race Browser & Map</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        navy: {
-                            50: '#f0f4f8',
-                            100: '#d9e5f0',
-                            200: '#b3cce0',
-                            300: '#8db2d0',
-                            400: '#6798c0',
-                            500: '#417eb0',
-                            600: '#1a4c73',
-                            700: '#0f2d44',
-                            800: '#081b29',
-                            900: '#04111a'
-                        },
-                        maritime: {
-                            50: '#f8fafc',
-                            100: '#f1f5f9',
-                            200: '#e2e8f0',
-                            300: '#cbd5e1',
-                            400: '#94a3b8',
-                            500: '#64748b',
-                            600: '#475569',
-                            700: '#334155',
-                            800: '#1e293b',
-                            900: '#0f172a'
-                        }
-                    },
-                    fontFamily: {
-                        'display': ['Playfair Display', 'serif'],
-                        'sans': ['Inter', 'system-ui', 'sans-serif'],
-                    },
-                    backdropBlur: {
-                        'xs': '2px',
-                    },
-                    animation: {
-                        'float': 'float 6s ease-in-out infinite',
-                        'shimmer': 'shimmer 2s linear infinite',
-                        'fade-in': 'fadeIn 0.5s ease-out',
-                        'slide-up': 'slideUp 0.4s ease-out',
-                        'ripple': 'ripple 0.6s ease-out',
-                    },
-                    keyframes: {
-                        float: {
-                            '0%, 100%': { transform: 'translateY(0px)' },
-                            '50%': { transform: 'translateY(-4px)' }
-                        },
-                        shimmer: {
-                            '0%': { transform: 'translateX(-100%)' },
-                            '100%': { transform: 'translateX(100%)' }
-                        },
-                        fadeIn: {
-                            '0%': { opacity: '0', transform: 'translateY(10px)' },
-                            '100%': { opacity: '1', transform: 'translateY(0)' }
-                        },
-                        slideUp: {
-                            '0%': { transform: 'translateY(20px)', opacity: '0' },
-                            '100%': { transform: 'translateY(0)', opacity: '1' }
-                        },
-                        ripple: {
-                            '0%': { transform: 'scale(0)', opacity: '1' },
-                            '100%': { transform: 'scale(4)', opacity: '0' }
-                        }
-                    }
-                }
-            }
-        }
-    </script>
-
-    <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-    <!-- Leaflet CSS and JS -->
+    <!-- Leaflet (Using a newer, compatible version) -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-    <!-- i-Boating / BLC Maps SDK -->
+    <!-- i-Boating Nautical Mapping -->
     <link rel='stylesheet' href='https://fishing-app.gpsnauticalcharts.com/i-boating-fishing-marine-navigation-sdk/5.5/blc-maps.css' />
     <script src='https://fishing-app.gpsnauticalcharts.com/i-boating-fishing-marine-navigation-sdk/5.5/blc-maps.js'></script>
+    <!-- i-Boating Leaflet Adapter -->
+    <script src="https://fishing-app.gpsnauticalcharts.com/i-boating-fishing-marine-navigation-sdk/5.5/leaflet-blc-adapter.js"></script>
 
     <style>
         body {
             font-family: 'Inter', sans-serif;
-            overflow: hidden;
-            background: linear-gradient(135deg, #0f172a 0%, #1e293b  100%);
+            background-color: #0f172a;
+            color: #e2e8f0;
+            overflow: hidden; /* Prevent scrolling on the body */
         }
-        
-        #map {
-            width: 100vw;
+        #app-container {
+            display: flex;
             height: 100vh;
+        }
+        #sidebar {
+            width: 35%;
+            max-width: 450px;
+            min-width: 320px;
+            background-color: #0f172a;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
             position: relative;
+            z-index: 10;
         }
-        
-        .leaflet-gl-layer {
-            pointer-events: auto;
+        #map-container {
+            flex-grow: 1;
+            height: 100%;
         }
-        
-        .glass-panel {
-            background: rgba(15, 23, 42, 0.85);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            box-shadow: 
-                0 8px 32px rgba(15, 23, 42, 0.5),
-                inset 0 1px 0 rgba(255, 255, 255, 0.15);
+        #map {
+            width: 100%;
+            height: 100%;
         }
-        
-        .glass-button {
-            background: rgba(51, 65, 85, 0.7);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            position: relative;
-            overflow: hidden;
+        #race-list, #layer-control-grid, #gibs-layer-list, #copernicus-layer-list {
+            overflow-y: auto;
         }
-        
-        .glass-button:hover {
-            background: rgba(71, 85, 105, 0.8);
-            border-color: rgba(255, 255, 255, 0.3);
-            transform: translateY(-1px);
-            box-shadow: 
-                0 10px 25px rgba(15, 23, 42, 0.4),
-                inset 0 1px 0 rgba(255, 255, 255, 0.2);
+        .race-card {
+            border-color: rgba(255, 255, 255, 0.1);
+            background-color: rgba(30, 41, 59, 0.5);
+            transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out, transform 0.2s ease-in-out;
+            cursor: pointer;
         }
-        
-        .glass-button:active {
-            transform: translateY(0);
+        .race-card:hover {
+            background-color: rgba(51, 65, 85, 0.5);
+            border-color: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
         }
-        
-        .panel-wrapper {
-            transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        .sort-btn {
+            background-color: rgba(51, 65, 85, 0.7);
+            transition: background-color 0.2s ease-in-out;
         }
-        
-        .panel-wrapper-collapsed-left {
-            transform: translateX(calc(-100% + 52px));
+        .sort-btn:hover {
+            background-color: rgba(71, 85, 105, 0.8);
         }
-        
-        .panel-wrapper-collapsed-right {
-            transform: translateX(calc(100% - 52px));
+        .sort-btn.active {
+            background-color: #417eb0;
+            color: white;
         }
-        
-        .toggle-button {
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            position: relative;
-        }
-        
-        .toggle-button svg {
-            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        
-        .toggle-button.active svg {
-            transform: rotate(180deg);
-        }
-        
         .luxury-input {
             background: rgba(30, 41, 59, 0.8);
             border: 1px solid rgba(255, 255, 255, 0.25);
             backdrop-filter: blur(12px);
             transition: all 0.3s ease;
         }
-        
         .luxury-input:focus {
             background: rgba(30, 41, 59, 0.9);
             border-color: rgba(65, 126, 176, 0.6);
             box-shadow: 0 0 0 3px rgba(65, 126, 176, 0.15);
         }
-        
-        .radio-luxury {
+         .radio-luxury {
             appearance: none;
             width: 18px;
             height: 18px;
@@ -190,8 +98,8 @@
         }
         
         .radio-luxury:checked {
-            border-color: #60a5fa;
-            background: rgba(96, 165, 250, 0.3);
+            border-color: #417eb0;
+            background: rgba(65, 126, 176, 0.3);
         }
         
         .radio-luxury:checked::after {
@@ -203,794 +111,639 @@
             width: 8px;
             height: 8px;
             border-radius: 50%;
-            background: #60a5fa;
+            background: #417eb0;
         }
-        
-        .location-btn, .tool-btn {
-            position: relative;
-            overflow: hidden;
+        .modal-backdrop {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(15, 23, 42, 0.7); backdrop-filter: blur(8px);
+            opacity: 0; transition: opacity 0.3s ease-in-out; pointer-events: none;
         }
-        
-        .location-btn::before, .tool-btn::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
-            transition: left 0.5s ease;
+        .modal-backdrop.visible { opacity: 1; pointer-events: auto; }
+        .modal {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.95);
+            width: 90%; max-width: 600px; max-height: 80vh;
+            display: flex; flex-direction: column; opacity: 0;
+            transition: all 0.3s ease-in-out; pointer-events: none;
         }
+        .modal.visible { opacity: 1; transform: translate(-50%, -50%) scale(1); pointer-events: auto; }
         
-        .location-btn:hover::before, .tool-btn:hover::before {
-            left: 100%;
+        #gibs-modal-backdrop, #copernicus-modal-backdrop { z-index: 1900; }
+        #gibs-modal, #copernicus-modal { z-index: 2000; }
+        #info-modal-backdrop { z-index: 2900; }
+        #info-modal { z-index: 3000; }
+
+        /* Drag and Drop Styles */
+        .overlay-layer-item.dragging {
+            opacity: 0.5;
+            background: #417eb0;
         }
-        
-        .coordinates-display {
-            background: rgba(15, 23, 42, 0.95);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.15);
+        .drag-handle {
+            cursor: move; /* grab */
         }
-        
-        .brand-title {
-            background: linear-gradient(135deg, #417eb0 0%, #64748b 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-        
-        .floating-animation {
-            animation: float 6s ease-in-out infinite;
-        }
-        
-        @keyframes ripple-effect {
-            0% { transform: scale(0); opacity: 1; }
-            100% { transform: scale(4); opacity: 0; }
-        }
-        
-        .ripple {
-            position: absolute;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.3);
-            pointer-events: none;
-            animation: ripple-effect 0.6s ease-out;
+
+        /* Responsive layout for smaller screens */
+        @media (max-width: 768px) {
+            #app-container {
+                flex-direction: column;
+            }
+            #sidebar {
+                width: 100%;
+                max-width: 100%;
+                height: 50vh; /* Sidebar takes top half of the screen */
+            }
+            #map-container {
+                height: 50vh; /* Map takes bottom half */
+            }
         }
     </style>
 </head>
 <body>
 
-    <!-- Map Container -->
-    <div id="map"></div>
+    <div id="app-container">
+        <!-- Left Panel: Race Browser -->
+        <div id="sidebar" class="p-4 sm:p-6 flex flex-col">
+            <header class="mb-4 flex-shrink-0">
+                <h1 class="text-2xl font-bold text-white mb-1">Sailing Race Browser</h1>
+                <p class="text-sm text-slate-400">Browse events and explore the map.</p>
+            </header>
 
-    <!-- Toast Notification Container -->
-    <div id="toast-container" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[2000] flex flex-col-reverse items-center space-y-3 space-y-reverse"></div>
-
-    <!-- Info Panel Wrapper (Left) -->
-    <div id="info-panel-wrapper" class="panel-wrapper fixed top-6 left-6 z-[1100] flex items-start">
-        <div id="info-panel-container" class="glass-panel rounded-l-2xl p-6 max-w-sm w-full md:w-auto animate-fade-in">
-            <div class="space-y-5">
-                <div class="flex items-center space-x-3">
-                    <div class="w-10 h-10 rounded-full bg-gradient-to-br from-navy-500 to-navy-700 flex items-center justify-center floating-animation">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M2 21c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2s2.5 2 5 2 2.5-2 5-2 2.5 2 5 2c1.3 0 1.9-.5 2.5-1"></path>
-                            <path d="M2 18c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2s2.5 2 5 2 2.5-2 5-2 2.5 2 5 2c1.3 0 1.9-.5 2.5-1"></path>
-                            <path d="M2 15c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2s2.5 2 5 2 2.5-2 5-2 2.5 2 5 2c1.3 0 1.9-.5 2.5-1"></path>
-                            <rect x="7" y="3" width="10" height="6" rx="2"></rect>
-                        </svg>
-                    </div>
-                    <h3 class="text-2xl font-display font-semibold brand-title">Seawise</h3>
-                </div>
-                <div class="h-px bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
-                <p class="text-sm text-white/80 leading-relaxed font-light">Premium marine navigation and chart viewing for discerning mariners</p>
-                <div class="space-y-2">
-                    <div class="flex items-center space-x-2">
-                        <div class="w-2 h-2 rounded-full bg-navy-400 animate-pulse"></div>
-                        <span class="font-medium text-sm text-white/90">Current Position</span>
-                    </div>
-                    <span id="current-location" class="text-sm text-white/70 ml-4 font-mono">Bar Harbor, Maine</span>
-                </div>
-            </div>
-        </div>
-        <button id="info-toggle" class="toggle-button active glass-button p-3 rounded-r-2xl text-white/80 hover:text-white">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="9" y1="18" x2="15" y2="12"></line>
-                <line x1="9" y1="6" x2="15" y2="12"></line>
-            </svg>
-        </button>
-    </div>
-
-    <!-- Controls Panel Wrapper (Right) -->
-    <div id="controls-panel-wrapper" class="panel-wrapper fixed top-6 right-6 z-[1000] flex items-start">
-        <button id="controls-toggle" class="toggle-button active glass-button p-3 rounded-l-2xl text-white/80 hover:text-white">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="15" y1="18" x2="9" y2="12"></line>
-                <line x1="15" y1="6" x2="9" y2="12"></line>
-            </svg>
-        </button>
-        <div id="controls-panel-container" class="glass-panel rounded-r-2xl p-6 max-w-sm w-full md:w-auto animate-fade-in">
-            <div class="space-y-6">
-                <!-- Location Search -->
-                <div class="space-y-3">
-                    <label for="location-search" class="font-semibold text-white/90 text-sm flex items-center space-x-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <circle cx="11" cy="11" r="8"></circle>
-                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                        </svg>
+            <!-- Tab content -->
+            <div class="flex-grow overflow-y-auto pr-2">
+                <!-- Navigation Search -->
+                <div class="space-y-3 mb-4">
+                    <label class="font-semibold text-white/90 text-sm flex items-center space-x-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
                         <span>Navigation Search</span>
                     </label>
                     <div class="flex items-center space-x-2">
                         <input type="text" id="location-search" class="luxury-input block w-full rounded-xl px-4 py-3 text-white placeholder-white/50 text-sm focus:outline-none" placeholder="e.g., Nantucket Sound">
-                        <button id="search-btn" class="glass-button p-3 rounded-xl text-white/80 hover:text-white shrink-0">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                                <circle cx="11" cy="11" r="8"></circle>
-                                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                            </svg>
+                        <button id="search-btn" class="bg-slate-700 hover:bg-slate-600 p-3 rounded-xl text-white/80 shrink-0">
+                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
                         </button>
                     </div>
                 </div>
 
-                <div class="h-px bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
-
                 <!-- Layer Controls -->
-                <div class="space-y-4">
+                <div class="space-y-4 mb-4">
                     <label class="font-semibold text-white/90 text-sm flex items-center space-x-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
-                            <polyline points="2,17 12,22 22,17"></polyline>
-                            <polyline points="2,12 12,17 22,12"></polyline>
-                        </svg>
-                        <span>Chart Layers</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2,17 12,22 22,17"></polyline><polyline points="2,12 12,17 22,12"></polyline></svg>
+                        <span>Base Maps</span>
                     </label>
-                    <div class="grid grid-cols-2 gap-3">
-                        <div class="flex items-center space-x-3">
-                            <input type="radio" id="nautical" name="baselayer" value="nautical" class="radio-luxury">
-                            <label for="nautical" class="text-sm text-white/80 cursor-pointer">Nautical</label>
-                        </div>
-                        <div class="flex items-center space-x-3">
-                            <input type="radio" id="satellite" name="baselayer" value="satellite" class="radio-luxury">
-                            <label for="satellite" class="text-sm text-white/80 cursor-pointer">Satellite</label>
-                        </div>
-                        <div class="flex items-center space-x-3">
-                            <input type="radio" id="osm" name="baselayer" value="osm" class="radio-luxury">
-                            <label for="osm" class="text-sm text-white/80 cursor-pointer">Coastal</label>
-                        </div>
-                        <div class="flex items-center space-x-3">
-                            <input type="radio" id="terrain" name="baselayer" value="terrain" class="radio-luxury">
-                            <label for="terrain" class="text-sm text-white/80 cursor-pointer">Terrain</label>
-                        </div>
+                    <div id="base-layer-grid" class="grid grid-cols-2 gap-3 p-3 bg-slate-800/50 rounded-xl">
+                        <!-- Base layers will be added here dynamically -->
                     </div>
                 </div>
-
-                <div class="h-px bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
-
-                <!-- Quick Locations -->
-                <div class="space-y-4">
+                
+                <div class="space-y-4 mb-4">
                     <label class="font-semibold text-white/90 text-sm flex items-center space-x-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-                            <circle cx="12" cy="10" r="3"></circle>
-                        </svg>
-                        <span>Premier Destinations</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>
+                        <span>Active Overlays</span>
                     </label>
+                    <div id="overlay-layer-grid" class="grid grid-cols-1 gap-2 p-2 bg-slate-800/50 rounded-xl min-h-[50px]">
+                        <!-- Active overlay layers will be added here dynamically -->
+                    </div>
                     <div class="grid grid-cols-2 gap-2">
-                        <button onclick="goToLocation(44.3876, -68.2039, 'Bar Harbor, Maine')" class="location-btn glass-button px-3 py-2.5 text-xs font-medium text-white/80 hover:text-white rounded-lg transition-all duration-300">Bar Harbor</button>
-                        <button onclick="goToLocation(37.8269, -122.3990, 'San Francisco Bay')" class="location-btn glass-button px-3 py-2.5 text-xs font-medium text-white/80 hover:text-white rounded-lg transition-all duration-300">SF Bay</button>
-                        <button onclick="goToLocation(25.7617, -80.1918, 'Miami Beach')" class="location-btn glass-button px-3 py-2.5 text-xs font-medium text-white/80 hover:text-white rounded-lg transition-all duration-300">Miami</button>
-                        <button onclick="goToLocation(41.3851, -71.4774, 'Narragansett Bay')" class="location-btn glass-button px-3 py-2.5 text-xs font-medium text-white/80 hover:text-white rounded-lg transition-all duration-300">Narragansett</button>
+                         <button id="browse-gibs-btn" class="w-full text-sm text-center py-2 bg-slate-700/50 hover:bg-slate-700 rounded-lg transition-colors">Browse NASA Layers</button>
+                         <button id="browse-copernicus-btn" class="w-full text-sm text-center py-2 bg-slate-700/50 hover:bg-slate-700 rounded-lg transition-colors">Browse Copernicus Layers</button>
                     </div>
                 </div>
 
-                <div class="h-px bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
 
-                <!-- Map Tools -->
-                <div class="space-y-4">
-                    <label class="font-semibold text-white/90 text-sm flex items-center space-x-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <circle cx="12" cy="12" r="3"></circle>
-                            <path d="M12 1v6m0 6v6m11-7h-6m-6 0H1"></path>
-                        </svg>
-                        <span>Navigation Tools</span>
-                    </label>
-                    <button onclick="getCurrentLocation()" class="tool-btn glass-button w-full px-4 py-3 text-sm font-medium text-white/80 hover:text-white rounded-lg flex items-center justify-center space-x-2 transition-all duration-300">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-                            <circle cx="12" cy="10" r="3"></circle>
-                        </svg>
-                        <span>Current Position</span>
-                    </button>
+                <!-- Race List Container -->
+                <div class="mb-4 p-4 bg-slate-800/50 rounded-xl border border-slate-700 space-y-4 flex-shrink-0">
+                    <input type="text" id="race-search-input" class="w-full bg-slate-900/80 border border-slate-600 rounded-lg px-4 py-2 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Search by race title...">
+                    <div class="flex flex-wrap gap-2">
+                        <span class="text-sm font-medium text-slate-300 self-center mr-2">Sort by:</span>
+                        <button id="sort-upcoming-btn" class="sort-btn text-sm px-3 py-1 rounded-full">Upcoming</button>
+                        <button id="sort-past-btn" class="sort-btn text-sm px-3 py-1 rounded-full">Past</button>
+                        <button id="sort-az-btn" class="sort-btn text-sm px-3 py-1 rounded-full">A-Z</button>
+                        <button id="sort-za-btn" class="sort-btn text-sm px-3 py-1 rounded-full">Z-A</button>
+                    </div>
                 </div>
+                <main id="race-list" class="space-y-3 pr-2">
+                    <!-- Race data will be injected here -->
+                </main>
+            </div>
+        </div>
+
+        <!-- Right Panel: Map -->
+        <div id="map-container">
+            <div id="map"></div>
+        </div>
+    </div>
+
+    <!-- Generic Modal for Layer Info -->
+    <div id="info-modal-backdrop" class="modal-backdrop">
+        <div id="info-modal" class="modal bg-slate-800/80 backdrop-blur-lg border border-slate-600 rounded-2xl">
+            <div class="p-4 border-b border-white/20 flex items-center justify-between">
+                <h3 id="info-modal-title" class="text-xl font-display text-white">Layer Information</h3>
+                <button id="close-info-modal-btn" class="text-white/60 hover:text-white transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+            </div>
+            <div id="info-modal-content" class="overflow-y-auto p-4 text-slate-300 text-sm leading-relaxed">
+                <!-- Info content will be injected here -->
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal for All GIBS Layers -->
+    <div id="gibs-modal-backdrop" class="modal-backdrop">
+        <div id="gibs-modal" class="modal bg-slate-800/80 backdrop-blur-lg border border-slate-600 rounded-2xl">
+            <div class="p-4 border-b border-white/20 flex items-center justify-between">
+                <h3 class="text-xl font-display text-white">All NASA GIBS Layers</h3>
+                <button id="close-gibs-modal-btn" class="text-white/60 hover:text-white transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+            </div>
+            <div class="p-4">
+                <input type="text" id="gibs-search-input" class="luxury-input w-full px-4 py-2 rounded-lg text-sm" placeholder="Search NASA layers...">
+            </div>
+            <div id="gibs-layer-list" class="overflow-y-auto p-4 pt-0">
+                <!-- All GIBS layers will be injected here -->
             </div>
         </div>
     </div>
 
-    <!-- Coordinates Display -->
-    <div class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[1000] coordinates-display text-white/90 text-xs font-mono px-4 py-2.5 rounded-xl shadow-lg">
-        <span id="coordinates">44.3876°N, 68.2039°W</span>
+    <!-- Modal for All Copernicus Layers -->
+    <div id="copernicus-modal-backdrop" class="modal-backdrop">
+        <div id="copernicus-modal" class="modal bg-slate-800/80 backdrop-blur-lg border border-slate-600 rounded-2xl">
+            <div class="p-4 border-b border-white/20 flex items-center justify-between">
+                <h3 class="text-xl font-display text-white">All Copernicus Marine Layers</h3>
+                <button id="close-copernicus-modal-btn" class="text-white/60 hover:text-white transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+            </div>
+            <div class="p-4">
+                <input type="text" id="copernicus-search-input" class="luxury-input w-full px-4 py-2 rounded-lg text-sm" placeholder="Search Copernicus layers...">
+            </div>
+            <div id="copernicus-layer-list" class="overflow-y-auto p-4 pt-0">
+                <!-- All Copernicus layers will be injected here -->
+            </div>
+        </div>
     </div>
 
+
     <script>
-        // Apply ripple effect to buttons
-        function addRippleEffect(element) {
-            element.addEventListener('click', function(e) {
-                const rect = element.getBoundingClientRect();
-                const size = Math.max(rect.width, rect.height);
-                const x = e.clientX - rect.left - size / 2;
-                const y = e.clientY - rect.top - size / 2;
-                
-                const ripple = document.createElement('span');
-                ripple.className = 'ripple';
-                ripple.style.width = ripple.style.height = size + 'px';
-                ripple.style.left = x + 'px';
-                ripple.style.top = y + 'px';
-                
-                element.appendChild(ripple);
-                
-                setTimeout(() => ripple.remove(), 600);
-            });
-        }
-
-        // Add ripple to all buttons when DOM loads
-        document.addEventListener('DOMContentLoaded', function() {
-            document.querySelectorAll('button, .location-btn, .tool-btn').forEach(addRippleEffect);
-        });
-
-        // --- BLC Maps Adapter (i-Boating) ---
-        (function (root, factory) {
-            if (typeof define === 'function' && define.amd) {
-                define(['leaflet', 'blc-maps'], factory);
-            } else if (typeof exports === 'object') {
-                module.exports = factory(require('leaflet'), require('blc-maps'));
-            } else {
-                root.returnExports = factory(window.L, window.blcgl);
-            }
-        }(this, function (L, blcgl) {
-            if (!L || !L.Layer) return;
-            L.BlcGL = L.Layer.extend({
-                options: { updateInterval: 32, padding: 0.1, interactive: false, pane: 'tilePane' },
-                initialize: function (options) {
-                    L.setOptions(this, options);
-                    if (options.blc_access_token) blcgl.accessToken = options.blc_access_token;
-                    this._throttledUpdate = L.Util.throttle(this._update, this.options.updateInterval, this);
-                },
-                onAdd: function (map) {
-                    if (!this._container) this._initContainer();
-                    map.getPane(this.getPaneName()).appendChild(this._container);
-                    this._initGL();
-                    this._offset = this._map.containerPointToLayerPoint([0, 0]);
-                    if (map.options.zoomAnimation) L.DomEvent.on(map._proxy, L.DomUtil.TRANSITION_END, this._transitionEnd, this);
-                    if (map._addZoomLimit) map._addZoomLimit(this);
-                },
-                onRemove: function (map) {
-                    if (this._map._proxy && this._map.options.zoomAnimation) L.DomEvent.off(this._map._proxy, L.DomUtil.TRANSITION_END, this._transitionEnd, this);
-                    var paneName = this.getPaneName();
-                    if (map.getPane(paneName) && this._container) map.getPane(paneName).removeChild(this._container);
-                    if (this._glMap && this._glMap.remove) this._glMap.remove();
-                },
-                getEvents: function () { return { move: this._throttledUpdate, zoomanim: this._animateZoom, zoom: this._pinchZoom, zoomstart: this._zoomStart, zoomend: this._zoomEnd, resize: this._resize }; },
-                getBlcGLMap: function () { return this._glMap; },
-                getCanvas: function () { return this._glMap ? this._glMap.getCanvas() : null; },
-                getSize: function () { return this._map.getSize().multiplyBy(1 + this.options.padding * 2); },
-                getBounds: function () {
-                    var halfSize = this.getSize().multiplyBy(0.5);
-                    var center = this._map.latLngToContainerPoint(this._map.getCenter());
-                    return L.latLngBounds(this._map.containerPointToLatLng(center.subtract(halfSize)), this._map.containerPointToLatLng(center.add(halfSize)));
-                },
-                getContainer: function () { return this._container; },
-                getPaneName: function () { return this._map.getPane(this.options.pane) ? this.options.pane : 'tilePane'; },
-                _initContainer: function () {
-                    var container = this._container = L.DomUtil.create('div', 'leaflet-gl-layer');
-                    var size = this.getSize();
-                    var offset = this._map.getSize().multiplyBy(this.options.padding);
-                    container.style.width  = size.x + 'px';
-                    container.style.height = size.y + 'px';
-                    var topLeft = this._map.containerPointToLayerPoint([0, 0]).subtract(offset);
-                    L.DomUtil.setPosition(container, topLeft);
-                },
-                _initGL: function () {
-                    var center = this._map.getCenter();
-                    var options = L.extend({}, this.options, { container: this._container, center: [center.lng, center.lat], zoom: this._map.getZoom() - 1, blc_enable_leaflet_compatibility: true, attributionControl: false });
-                    try {
-                        if (!this._glMap && window.blcgl && window.blcgl.external_to_js) this._glMap = new blcgl.external_to_js.blcCreateMapObject(options);
-                        else if (this._glMap) { this._glMap.setCenter(options.center); this._glMap.setZoom(options.zoom); }
-                        if (this._glMap) {
-                            this._glMap.transform.latRange = null; this._transformGL(this._glMap);
-                            this._glMap._actualCanvas = this._glMap._canvas.canvas || this._glMap._canvas || (this._glMap.getCanvas ? this._glMap.getCanvas() : null);
-                            if (this._glMap._actualCanvas) {
-                                var canvas = this._glMap._actualCanvas;
-                                L.DomUtil.addClass(canvas, 'leaflet-image-layer leaflet-zoom-animated');
-                                if (this.options.interactive) L.DomUtil.addClass(canvas, 'leaflet-interactive');
-                                if (this.options.className) L.DomUtil.addClass(canvas, this.options.className);
-                            }
-                        }
-                    } catch (error) { console.error('Error initializing BLC GL Map:', error); throw error; }
-                },
-                _update: function (e) {
-                    if (!this._map || !this._glMap) return;
-                    this._offset = this._map.containerPointToLayerPoint([0, 0]);
-                    if (this._zooming) return;
-                    var size = this.getSize(), container = this._container, gl = this._glMap, offset = this._map.getSize().multiplyBy(this.options.padding), topLeft = this._map.containerPointToLayerPoint([0, 0]).subtract(offset);
-                    L.DomUtil.setPosition(container, topLeft);
-                    this._transformGL(gl);
-                    var x_round = Math.round(size.x), y_round = Math.round(size.y);
-                    if (Math.round(gl.transform.width) !== x_round || Math.round(gl.transform.height) !== y_round) {
-                        container.style.width  = x_round + 'px'; container.style.height = y_round + 'px';
-                        if (gl._resize) gl._resize(); else if (gl.resize) gl.resize();
-                    } else {
-                        if (gl._update) gl._update(); else if (gl.update) gl.update();
-                    }
-                },
-                _transformGL: function (gl) {
-                    if (!gl || !gl.transform) return;
-                    var center = this._map.getCenter(); var tr = gl.transform;
-                    if (blcgl && blcgl.LngLat && blcgl.LngLat.convert) tr.center = blcgl.LngLat.convert([center.lng, center.lat]);
-                    else tr.center = {lng: center.lng, lat: center.lat};
-                    tr.zoom = this._map.getZoom() - 1;
-                },
-                _pinchZoom: function (e) { if (this._glMap && this._glMap.jumpTo) this._glMap.jumpTo({ zoom: this._map.getZoom() - 1, center: this._map.getCenter() }); },
-                _animateZoom: function (e) {
-                    if (!this._glMap || !this._glMap._actualCanvas) return;
-                    var scale = this._map.getZoomScale(e.zoom), padding = this._map.getSize().multiplyBy(this.options.padding * scale), viewHalf = this.getSize()._divideBy(2);
-                    var topLeft = this._map.project(e.center, e.zoom)._subtract(viewHalf)._add(this._map._getMapPanePos().add(padding))._round();
-                    var offset = this._map.project(this._map.getBounds().getNorthWest(), e.zoom)._subtract(topLeft);
-                    L.DomUtil.setTransform(this._glMap._actualCanvas, offset.subtract(this._offset), scale);
-                },
-                _zoomStart: function (e) { this._zooming = true; },
-                _zoomEnd: function () {
-                    if (!this._glMap || !this._glMap._actualCanvas) return;
-                    var scale = this._map.getZoomScale(this._map.getZoom());
-                    L.DomUtil.setTransform(this._glMap._actualCanvas, null, scale);
-                    this._zooming = false; this._update();
-                },
-                _transitionEnd: function (e) {
-                    var self = this;
-                    L.Util.requestAnimFrame(function () {
-                        if (!self._glMap) return;
-                        var zoom = self._map.getZoom(), center = self._map.getCenter(), offset = self._map.latLngToContainerPoint(self._map.getBounds().getNorthWest());
-                        if (self._glMap._actualCanvas) L.DomUtil.setTransform(self._glMap._actualCanvas, offset, 1);
-                        if (self._glMap.once && self._glMap.jumpTo) {
-                            self._glMap.once('moveend', L.Util.bind(function () { self._zoomEnd(); }, self));
-                            self._glMap.jumpTo({ center: center, zoom: zoom - 1 });
-                        }
-                    });
-                },
-                _resize: function (e) { this._transitionEnd(e); }
-            });
-            L.blcGL = function (options) { return new L.BlcGL(options); };
-            return L.BlcGL;
-        }));
-
-        // --- Application Logic ---
-
-        // Global variables
+        // --- Global Variables ---
+        let allRaces = [];
+        let currentSort = 'past';
         let map;
-        let nauticalLayer = null;
         let currentBaseLayer = null;
-        const BLC_MAPS_TOKEN = 'wYhXj07uz1kfDTKR1qxuBn'; // Default i-Boating token
-
-        // Base layer definitions
-        const baseLayers = {
-            osm: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                maxZoom: 19,
-                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            }),
-            satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-                maxZoom: 18,
-                attribution: '&copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
-            }),
-            terrain: L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
-                maxZoom: 17,
-                attribution: 'Map data: &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, <a href="http://viewfinderpanoramas.org">SRTM</a> | Map style: &copy; <a href="https://opentopomap.org">OpenTopoMap</a> (CC-BY-SA)'
-            })
-        };
-
-        /**
-         * Initializes the Leaflet map and its components.
-         */
-        function initializeMap() {
-            map = L.map('map', {
-                zoomControl: false // Add it manually in a different position
-            }).setView([44.3876, -68.2039], 13); // Bar Harbor, Maine coordinates
-
-            // Customize zoom control
-            L.control.zoom({ 
-                position: 'bottomright',
-                zoomInTitle: 'Zoom In',
-                zoomOutTitle: 'Zoom Out'
-            }).addTo(map);
-            
-            L.control.scale({ 
-                position: 'bottomleft',
-                metric: true,
-                imperial: true
-            }).addTo(map);
-
-            // Default to nautical charts on load
-            document.getElementById('nautical').checked = true;
-            switchToLayer('nautical');
-        }
-
-        /**
-         * Switches the active map layer.
-         * @param {string} layerType - The key of the layer to switch to.
-         */
-        function switchToLayer(layerType) {
-            if (currentBaseLayer) map.removeLayer(currentBaseLayer);
-            if (nauticalLayer) map.removeLayer(nauticalLayer);
-            
-            currentBaseLayer = null;
-            nauticalLayer = null;
-
-            if (layerType === 'nautical') {
-                if (!createNauticalLayer()) {
-                    showToast('Nautical charts unavailable. Switching to Coastal view.', 'warning');
-                    document.getElementById('osm').checked = true;
-                    currentBaseLayer = baseLayers.osm;
-                    currentBaseLayer.addTo(map);
-                }
-            } else {
-                currentBaseLayer = baseLayers[layerType];
-                if (currentBaseLayer) {
-                    currentBaseLayer.addTo(map);
-                    showToast(`Switched to ${layerType.charAt(0).toUpperCase() + layerType.slice(1)} view`, 'success');
-                }
-            }
-        }
-
-        /**
-         * Creates and adds the i-Boating nautical chart layer.
-         * @returns {boolean} - True if successful, false otherwise.
-         */
-        function createNauticalLayer() {
-            if (!BLC_MAPS_TOKEN) {
-                showToast('Nautical chart access unavailable.', 'error');
-                return false;
-            }
-            try {
-                nauticalLayer = L.blcGL({
-                    blc_access_token: BLC_MAPS_TOKEN,
-                    interactive: true,
-                    padding: 0.1
-                });
-                map.addLayer(nauticalLayer);
-                showToast('Nautical charts loaded successfully', 'success');
-                return true;
-            } catch (error) {
-                console.error('Nautical layer error:', error);
-                showToast(`Chart loading failed: ${error.message}`, 'error');
-                return false;
-            }
-        }
-
-        /**
-         * Updates the location display based on current map center and zoom level
-         */
-        function updateLocationDisplay() {
-            const center = map.getCenter();
-            const zoom = map.getZoom();
-            reverseGeocode(center.lat, center.lng, zoom);
-        }
-
-        /**
-         * Reverse geocodes coordinates to get a readable location name based on zoom level
-         * @param {number} lat - Latitude
-         * @param {number} lng - Longitude 
-         * @param {number} zoom - Current map zoom level
-         */
-        async function reverseGeocode(lat, lng, zoom) {
-            try {
-                // Adjust the zoom parameter for Nominatim based on our map zoom
-                // Higher zoom = more detail, lower zoom = more general
-                let nominatimZoom;
-                if (zoom >= 15) nominatimZoom = 18;        // Very detailed (street level)
-                else if (zoom >= 13) nominatimZoom = 16;   // Detailed (neighborhood/harbor)
-                else if (zoom >= 11) nominatimZoom = 14;   // Moderate (city/bay)
-                else if (zoom >= 9) nominatimZoom = 12;    // General (region/county)
-                else if (zoom >= 7) nominatimZoom = 10;    // Broad (state/province)
-                else nominatimZoom = 8;                    // Very broad (country/large region)
-
-                const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=${nominatimZoom}&addressdetails=1`;
-                const response = await fetch(url);
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    if (data && data.display_name) {
-                        const address = data.address || {};
-                        let locationName = getLocationByZoomLevel(address, zoom);
-                        
-                        document.getElementById('current-location').textContent = locationName || 'Unknown Waters';
-                    }
-                }
-            } catch (error) {
-                // Silently fail for reverse geocoding - not critical functionality
-                console.log('Reverse geocoding unavailable');
-            }
-        }
-
-        /**
-         * Determines appropriate location name based on zoom level
-         * @param {Object} address - Address components from Nominatim
-         * @param {number} zoom - Current map zoom level
-         * @returns {string} - Formatted location name
-         */
-        function getLocationByZoomLevel(address, zoom) {
-            // Very detailed view (15+ zoom) - Show specific locations
-            if (zoom >= 15) {
-                if (address.marina) return `${address.marina} Marina`;
-                if (address.harbour) return `${address.harbour} Harbor`;
-                if (address.bay) return `${address.bay} Bay`;
-                if (address.pier) return `${address.pier} Pier`;
-                if (address.waterway) return `${address.waterway}`;
-                if (address.neighbourhood) return `${address.neighbourhood}`;
-                if (address.suburb) return `${address.suburb}`;
-                if (address.road && address.house_number) return `${address.house_number} ${address.road}`;
-                if (address.road) return `${address.road}`;
-            }
-            
-            // Detailed view (13-14 zoom) - Show harbors, bays, neighborhoods
-            if (zoom >= 13) {
-                if (address.marina) return `${address.marina} Marina`;
-                if (address.harbour) return `${address.harbour} Harbor`;
-                if (address.bay) return `${address.bay} Bay`;
-                if (address.neighbourhood) return `${address.neighbourhood}`;
-                if (address.suburb) return `${address.suburb}`;
-                if (address.village) return `${address.village}`;
-                if (address.town) return `${address.town}`;
-            }
-            
-            // Moderate view (11-12 zoom) - Show cities, bays, general areas
-            if (zoom >= 11) {
-                if (address.bay) return `${address.bay} Bay`;
-                if (address.city) return `${address.city}`;
-                if (address.town) return `${address.town}`;
-                if (address.village) return `${address.village}`;
-                if (address.municipality) return `${address.municipality}`;
-            }
-            
-            // General view (9-10 zoom) - Show regions, counties
-            if (zoom >= 9) {
-                if (address.county && address.state) {
-                    return `${address.county}, ${address.state}`;
-                }
-                if (address.city && address.state) {
-                    return `${address.city}, ${address.state}`;
-                }
-                if (address.state_district) return `${address.state_district}`;
-                if (address.county) return `${address.county}`;
-            }
-            
-            // Broad view (7-8 zoom) - Show states/provinces
-            if (zoom >= 7) {
-                if (address.state && address.country_code) {
-                    const countryCode = address.country_code.toUpperCase();
-                    return `${address.state}, ${countryCode}`;
-                }
-                if (address.state) return `${address.state}`;
-                if (address.region) return `${address.region}`;
-            }
-            
-            // Very broad view (< 7 zoom) - Show countries, major regions
-            if (address.country) {
-                if (address.continent && zoom < 4) {
-                    return `${address.continent}`;
-                }
-                return `${address.country}`;
-            }
-            
-            // Ultimate fallback
-            return 'Open Waters';
-        }
-
-        window.goToLocation = (lat, lng, name) => {
-            map.setView([lat, lng], 13);
-            document.getElementById('current-location').textContent = name;
-            showToast(`Navigated to ${name}`, 'success');
-        };
-
-        window.getCurrentLocation = () => {
-            if (navigator.geolocation) {
-                showToast('Acquiring position...', 'info');
-                navigator.geolocation.getCurrentPosition(position => {
-                    const { latitude, longitude } = position.coords;
-                    goToLocation(latitude, longitude, 'Your Current Position');
-                    showToast('Position acquired successfully', 'success');
-                }, (error) => {
-                    let message = 'Unable to determine location.';
-                    switch(error.code) {
-                        case error.PERMISSION_DENIED:
-                            message = 'Location access denied by user.';
-                            break;
-                        case error.POSITION_UNAVAILABLE:
-                            message = 'Location information unavailable.';
-                            break;
-                        case error.TIMEOUT:
-                            message = 'Location request timed out.';
-                            break;
-                    }
-                    showToast(message, 'error');
-                }, {
-                    enableHighAccuracy: true,
-                    timeout: 10000,
-                    maximumAge: 60000
-                });
-            } else {
-                showToast('Geolocation not supported by this browser.', 'error');
-            }
-        };
+        let baseLayers = {};
         
-        /**
-         * Searches for a location using Nominatim API and moves the map.
-         */
+        let allOverlays = {}; // Holds all instantiated overlay layers
+        let activeOverlayOrder = []; // Array of objects: {key, source}
+        let gibsMetadata = {};
+        let copernicusMetadata = {};
+        
+        let draggedItem = null;
+        const IBOATING_API_KEY = "wYhXj07uz1kfDTKR1qxuBn";
+
+        // --- Core Functions ---
+
+        function initializeMap() {
+            map = L.map('map', { zoomControl: false }).setView([44.3896, -68.1902], 13);
+
+            baseLayers = {
+                osm: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'),
+                satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'),
+                terrain: L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png'),
+                nautical: L.blcGL({ blc_access_token: IBOATING_API_KEY })
+            };
+            
+            switchToBaseLayer('nautical');
+            updateBaseLayerControlPanel();
+        }
+
+        function switchToBaseLayer(layerKey) {
+            const newLayer = baseLayers[layerKey];
+            if (newLayer && newLayer !== currentBaseLayer) {
+                if (currentBaseLayer && map.hasLayer(currentBaseLayer)) {
+                    map.removeLayer(currentBaseLayer);
+                }
+                map.addLayer(newLayer);
+                currentBaseLayer = newLayer;
+                if (typeof currentBaseLayer.setZIndex === 'function') {
+                    currentBaseLayer.setZIndex(0);
+                }
+            }
+        }
+
+        // --- UNIFIED OVERLAY FUNCTION ---
+        function toggleOverlayLayer(layerKey, source, isActive) {
+            const existingIndex = activeOverlayOrder.findIndex(item => item.key === layerKey && item.source === source);
+            const uniqueId = `${source}_${layerKey}`;
+
+            if (isActive) {
+                if (existingIndex === -1) {
+                    activeOverlayOrder.push({ key: layerKey, source: source });
+                }
+
+                if (!allOverlays[uniqueId]) {
+                    // CORRECTED: Properly select metadata object based on source
+                    const metadata = source === 'gibs' ? gibsMetadata : copernicusMetadata;
+                    const meta = metadata[layerKey];
+                    if (!meta || !meta.template) {
+                        console.error(`No metadata or template for ${source} layer:`, layerKey);
+                        return;
+                    }
+                    
+                    const templateUrl = meta.template
+                        .replace('{Time}', meta.date || '')
+                        .replace('{TileMatrixSet}', meta.tileMatrixSet)
+                        .replace('{TileMatrix}', '{z}')
+                        .replace('{TileRow}', '{y}')
+                        .replace('{TileCol}', '{x}');
+
+                    allOverlays[uniqueId] = L.tileLayer(templateUrl, {
+                        attribution: `<a href="${meta.attributionLink || '#'}">${meta.attributionText || source.toUpperCase()}</a>`,
+                        transparent: true,
+                        continuousWorld: true, // This enables infinite horizontal scrolling
+                        noWrap: false, // Works with continuousWorld to wrap tiles
+                        maxNativeZoom: 12, // ADDED: Assumed max native zoom for these overlay types
+                        maxZoom: 20 // ADDED: Allow overzooming up to map's max zoom
+                    });
+                }
+                
+                if (!map.hasLayer(allOverlays[uniqueId])) {
+                    map.addLayer(allOverlays[uniqueId]);
+                }
+            } else {
+                if (existingIndex > -1) {
+                    activeOverlayOrder.splice(existingIndex, 1);
+                }
+                if (allOverlays[uniqueId] && map.hasLayer(allOverlays[uniqueId])) {
+                    map.removeLayer(allOverlays[uniqueId]);
+                }
+            }
+
+            renderActiveOverlayLayers();
+            updateMapLayerZIndices();
+        }
+        
+        // CORRECTED: This function now correctly sets the drawing order on the map
+        // to match the visual order in the sidebar (top of list = top on map).
+        function updateMapLayerZIndices() {
+            const totalLayers = activeOverlayOrder.length;
+            activeOverlayOrder.forEach((item, index) => {
+                const uniqueId = `${item.source}_${item.key}`;
+                if (allOverlays[uniqueId]) {
+                    // The layer at the top of the list (index 0) should have the highest z-index.
+                    allOverlays[uniqueId].setZIndex(totalLayers - index);
+                }
+            });
+        }
+
         async function searchLocation() {
             const query = document.getElementById('location-search').value.trim();
-            if (!query) {
-                showToast('Please enter a location to search.', 'info');
-                return;
-            }
-            
-            const searchBtn = document.getElementById('search-btn');
-            const originalContent = searchBtn.innerHTML;
-            
-            // Show loading spinner
-            searchBtn.innerHTML = '<div class="animate-spin w-4 h-4 border-2 border-white/30 border-t-white rounded-full"></div>';
-            searchBtn.disabled = true;
-            
-            const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`;
-            
+            if (!query) return;
+            const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`;
             try {
                 const response = await fetch(url);
-                if (!response.ok) throw new Error('Network response was not ok.');
                 const data = await response.json();
-                
                 if (data && data.length > 0) {
-                    const { lat, lon, display_name } = data[0];
-                    const locationName = display_name.split(',').slice(0, 2).join(',');
-                    goToLocation(parseFloat(lat), parseFloat(lon), locationName);
-                    showToast(`Found: ${locationName}`, 'success');
-                    document.getElementById('location-search').value = '';
+                    const { lat, lon } = data[0];
+                    map.setView([lat, lon], 13);
                 } else {
-                    showToast('Location not found. Try a different search.', 'warning');
+                    console.warn('Location not found.');
                 }
             } catch (error) {
-                console.error('Search error:', error);
-                showToast('Search service unavailable.', 'error');
-            } finally {
-                searchBtn.innerHTML = originalContent;
-                searchBtn.disabled = false;
+                console.error('Search failed:', error);
+            }
+        }
+
+        async function loadRaceData() {
+            try {
+                // Reverted to fetch the JSON file from the local server
+                const response = await fetch('data/races-metadata.json');
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                allRaces = await response.json();
+            } catch (error) {
+                console.error("Could not load race data:", error);
+                // Provide a fallback or user message if the file isn't found
+                document.getElementById('race-list').innerHTML = `<p class="text-center text-red-400">Could not load race data. Ensure races-metadata.json is available.</p>`;
+            }
+        }
+
+        function displayRaces(races) {
+            const raceListContainer = document.getElementById('race-list');
+            raceListContainer.innerHTML = '';
+            if (races.length === 0) {
+                raceListContainer.innerHTML = `<p class="text-slate-400 text-center">No races match your criteria.</p>`;
+                return;
+            }
+            races.forEach(race => {
+                const card = document.createElement('div');
+                card.className = 'race-card border rounded-lg flex items-center p-3 space-x-4';
+                const placeholderImage = `https://placehold.co/64x64/1e293b/475569?text=${encodeURIComponent(race.Title.charAt(0))}`;
+                card.innerHTML = `
+                    <img src="${race['Logo URL'] || placeholderImage}" alt="${race.Title}" class="w-12 h-12 rounded-md object-cover flex-shrink-0" onerror="this.onerror=null;this.src='${placeholderImage}';">
+                    <div class="flex-grow overflow-hidden">
+                        <h3 class="font-semibold text-white truncate">${race.Title}</h3>
+                        <p class="text-sm text-slate-400">${race.Date}</p>
+                    </div>`;
+                card.addEventListener('click', () => map.setView([37.8269, -122.3990], 14));
+                raceListContainer.appendChild(card);
+            });
+        }
+        
+        function updateRaceDisplay() {
+            const searchTerm = document.getElementById('race-search-input').value.toLowerCase();
+            let filteredRaces = allRaces.filter(race => race.Title.toLowerCase().includes(searchTerm));
+            const now = new Date();
+            switch (currentSort) {
+                case 'upcoming':
+                    filteredRaces = filteredRaces.filter(r => new Date(r.Date) >= now).sort((a, b) => new Date(a.Date) - new Date(b.Date));
+                    break;
+                case 'past':
+                    filteredRaces = filteredRaces.filter(r => new Date(r.Date) < now).sort((a, b) => new Date(b.Date) - new Date(a.Date));
+                    break;
+                case 'az': filteredRaces.sort((a, b) => a.Title.localeCompare(b.Title)); break;
+                case 'za': filteredRaces.sort((a, b) => b.Title.localeCompare(a.Title)); break;
+            }
+            displayRaces(filteredRaces);
+            updateSortButtons();
+        }
+
+        function updateSortButtons() {
+            document.querySelectorAll('.sort-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(`sort-${currentSort}-btn`)?.classList.add('active');
+        }
+
+        function showInfoModal(meta) {
+            document.getElementById('info-modal-title').textContent = meta.title;
+            let content = `<p class="italic">${meta.description || 'No description available.'}</p>`; 
+            if (meta.legend) {
+                content += `<img src="${meta.legend.href}" alt="Legend" class="mt-4 rounded-md bg-white/10 p-1"/>`;
+            }
+            document.getElementById('info-modal-content').innerHTML = content;
+            document.getElementById('info-modal-backdrop').classList.add('visible');
+            document.getElementById('info-modal').classList.add('visible');
+        }
+
+        function hideInfoModal() {
+            document.getElementById('info-modal-backdrop').classList.remove('visible');
+            document.getElementById('info-modal').classList.remove('visible');
+        }
+
+        function toggleGibsModal(show) {
+            document.getElementById('gibs-modal-backdrop').classList.toggle('visible', show);
+            document.getElementById('gibs-modal').classList.toggle('visible', show);
+        }
+        
+        function toggleCopernicusModal(show) {
+            document.getElementById('copernicus-modal-backdrop').classList.toggle('visible', show);
+            document.getElementById('copernicus-modal').classList.toggle('visible', show);
+        }
+
+        // This function can parse a capabilities document with multiple layers
+        function parseMultipleLayersFromWmts(xmlText, metadataObject, source) {
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(xmlText, "text/xml");
+            const layers = xmlDoc.querySelectorAll('Layer');
+            layers.forEach(layer => parseSingleLayer(layer, metadataObject, source));
+        }
+
+        // This function parses a single layer from a capabilities document
+        function parseSingleLayer(layer, metadataObject, source) {
+            const identifier = layer.querySelector('Identifier, ows\\:Identifier')?.textContent;
+            const title = layer.querySelector('Title, ows\\:Title')?.textContent;
+            const tileMatrixSet = layer.querySelector('TileMatrixSetLink > TileMatrixSet')?.textContent;
+            const resourceUrlNode = layer.querySelector('ResourceURL[resourceType="tile"]');
+            let template = resourceUrlNode?.getAttribute('template');
+            
+            if (identifier && title && tileMatrixSet && template) {
+                metadataObject[identifier] = { 
+                    title, 
+                    tileMatrixSet, 
+                    template,
+                    date: layer.querySelector('Dimension > Default')?.textContent || new Date().toISOString().split('T')[0],
+                    attributionLink: source === 'gibs' ? 'https://earthdata.nasa.gov/gibs' : 'https://marine.copernicus.eu/',
+                    attributionText: source === 'gibs' ? 'NASA GIBS' : 'Copernicus Marine'
+                };
+            }
+        }
+
+        async function initializeAllOverlays() {
+            // NASA GIBS
+            try {
+                const gibsUrl = 'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/1.0.0/WMTSCapabilities.xml';
+                const response = await fetch(gibsUrl);
+                const xmlText = await response.text();
+                parseMultipleLayersFromWmts(xmlText, gibsMetadata, 'gibs');
+            } catch (error) {
+                console.error("Failed to load or parse GIBS capabilities:", error);
+            }
+            
+            // Copernicus Marine - New method
+            try {
+                const response = await fetch('data/copernicus-marine-layers.json');
+                const layerIds = await response.json();
+
+                const promises = layerIds.map(id => {
+                    const url = `https://wmts.marine.copernicus.eu/teroWmts/${id}?SERVICE=WMTS&version=1.0.0&REQUEST=GetCapabilities`;
+                    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+                    return fetch(proxyUrl).then(res => res.text());
+                });
+
+                const results = await Promise.all(promises);
+
+                results.forEach(xmlText => {
+                    const parser = new DOMParser();
+                    const xmlDoc = parser.parseFromString(xmlText, "text/xml");
+                    const layer = xmlDoc.querySelector('Layer');
+                    if (layer) {
+                        parseSingleLayer(layer, copernicusMetadata, 'copernicus');
+                    }
+                });
+
+            } catch (error) {
+                console.error("Failed to load Copernicus layers:", error);
+            }
+            
+            // After all sources are loaded, populate the UI
+            renderActiveOverlayLayers();
+            populateAllGibsLayersModal();
+            populateAllCopernicusLayersModal();
+        }
+
+        function updateBaseLayerControlPanel() {
+            const grid = document.getElementById('base-layer-grid');
+            grid.innerHTML = '';
+            const baseLayerInfo = { nautical: 'Nautical', satellite: 'Satellite', osm: 'Coastal', terrain: 'Terrain' };
+            Object.keys(baseLayerInfo).forEach(key => {
+                const div = document.createElement('div');
+                div.className = 'flex items-center space-x-3';
+                div.innerHTML = `<input type="radio" id="${key}" name="baselayer" value="${key}" class="radio-luxury"><label for="${key}" class="text-sm text-white/80 cursor-pointer">${baseLayerInfo[key]}</label>`;
+                grid.appendChild(div);
+            });
+            document.querySelectorAll('input[name="baselayer"]').forEach(radio => radio.addEventListener('change', (e) => switchToBaseLayer(e.target.value)));
+            document.querySelector('input[name="baselayer"][value="nautical"]').checked = true;
+        }
+
+        function renderActiveOverlayLayers() {
+            const grid = document.getElementById('overlay-layer-grid');
+            grid.innerHTML = '';
+
+            if (activeOverlayOrder.length === 0) {
+                grid.innerHTML = `<p class="text-xs text-slate-400 text-center p-2">No active overlays. Add some from the browsers.</p>`;
+                return;
+            }
+
+            activeOverlayOrder.forEach(item => {
+                const metadata = item.source === 'gibs' ? gibsMetadata : copernicusMetadata;
+                const meta = metadata[item.key];
+                if (!meta) return;
+
+                const div = document.createElement('div');
+                div.className = 'overlay-layer-item flex items-center justify-between space-x-2 bg-slate-700/50 p-2 rounded-md';
+                div.setAttribute('draggable', true);
+                div.dataset.layerKey = item.key;
+                div.dataset.source = item.source;
+
+                div.innerHTML = `
+                    <div class="flex items-center space-x-2 overflow-hidden">
+                        <span class="drag-handle text-slate-400 hover:text-white cursor-move">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="19" r="1"></circle></svg>
+                        </span>
+                        <div>
+                            <label class="text-sm text-white/80 overflow-hidden text-ellipsis whitespace-nowrap" title="${meta.title}">${meta.title}</label>
+                            <span class="text-xs ${item.source === 'gibs' ? 'text-cyan-400' : 'text-green-400'} uppercase font-semibold">${item.source}</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-2 flex-shrink-0">
+                        <button class="info-btn text-slate-400 hover:text-white">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                        </button>
+                        <button class="remove-btn text-slate-400 hover:text-red-400">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                        </button>
+                    </div>`;
+                grid.appendChild(div);
+            });
+
+            grid.querySelectorAll('.overlay-layer-item').forEach(item => {
+                const key = item.dataset.layerKey;
+                const source = item.dataset.source;
+                item.querySelector('.info-btn').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const metadata = source === 'gibs' ? gibsMetadata : copernicusMetadata;
+                    if (metadata[key]) showInfoModal(metadata[key]);
+                });
+                item.querySelector('.remove-btn').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    toggleOverlayLayer(key, source, false);
+                });
+                item.addEventListener('dragstart', handleDragStart);
+                item.addEventListener('dragover', handleDragOver);
+                item.addEventListener('drop', handleDrop);
+                item.addEventListener('dragend', handleDragEnd);
+            });
+        }
+        
+        function handleDragStart(e) {
+            draggedItem = e.target;
+            setTimeout(() => e.target.classList.add('dragging'), 0);
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            const overItem = e.target.closest('.overlay-layer-item');
+            if (overItem && draggedItem !== overItem) {
+                const rect = overItem.getBoundingClientRect();
+                const isAfter = e.clientY > rect.top + rect.height / 2;
+                overItem.parentNode.insertBefore(draggedItem, isAfter ? overItem.nextSibling : overItem);
             }
         }
         
-        // --- UI and Event Handlers ---
-
-        function setupEventListeners() {
-            // Layer switcher
-            document.querySelectorAll('input[name="baselayer"]').forEach(radio => {
-                radio.addEventListener('change', (e) => switchToLayer(e.target.value));
+        function handleDrop(e) {
+            e.preventDefault();
+            const newOrder = [];
+            document.querySelectorAll('#overlay-layer-grid .overlay-layer-item').forEach(item => {
+                newOrder.push({ key: item.dataset.layerKey, source: item.dataset.source });
             });
+            activeOverlayOrder = newOrder;
+            updateMapLayerZIndices();
+        }
+        
+        function handleDragEnd(e) {
+            e.target.classList.remove('dragging');
+            draggedItem = null;
+        }
+
+        function populateLayersModal(containerId, metadata, source) {
+            const listContainer = document.getElementById(containerId);
+            listContainer.innerHTML = '';
+            const sortedKeys = Object.keys(metadata).sort((a, b) => metadata[a].title.localeCompare(metadata[b].title));
+
+            sortedKeys.forEach(key => {
+                const meta = metadata[key];
+                const item = document.createElement('div');
+                item.className = 'race-card p-3 flex justify-between items-center';
+                item.innerHTML = `
+                    <span class="truncate" title="${meta.title}">${meta.title}</span>
+                    <div class="flex items-center space-x-2">
+                        <button class="info-btn text-slate-400 hover:text-white flex-shrink-0">
+                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                        </button>
+                        <button class="select-btn text-sm bg-slate-600 hover:bg-slate-500 px-3 py-1 rounded-full">Select</button>
+                    </div>`;
+                item.querySelector('.info-btn').addEventListener('click', (e) => { e.stopPropagation(); showInfoModal(meta); });
+                item.querySelector('.select-btn').addEventListener('click', () => {
+                    toggleOverlayLayer(key, source, true);
+                    if (source === 'gibs') toggleGibsModal(false);
+                    else if (source === 'copernicus') toggleCopernicusModal(false);
+                });
+                listContainer.appendChild(item);
+            });
+        }
+        
+        const populateAllGibsLayersModal = () => populateLayersModal('gibs-layer-list', gibsMetadata, 'gibs');
+        const populateAllCopernicusLayersModal = () => populateLayersModal('copernicus-layer-list', copernicusMetadata, 'copernicus');
+
+        // --- Event Listeners and Initialization ---
+        document.addEventListener('DOMContentLoaded', async () => {
+            initializeMap();
+            await loadRaceData(); // Load race data first
+            updateRaceDisplay(); // Then display it
             
-            // Location Search
+            await initializeAllOverlays(); // Load all map layers
+            
             document.getElementById('search-btn').addEventListener('click', searchLocation);
-            document.getElementById('location-search').addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') searchLocation();
-            });
+            document.getElementById('location-search').addEventListener('keypress', (e) => { if (e.key === 'Enter') searchLocation(); });
+            document.getElementById('race-search-input').addEventListener('input', updateRaceDisplay);
+            document.querySelectorAll('.sort-btn').forEach(btn => btn.addEventListener('click', (e) => {
+                currentSort = e.target.id.split('-')[1];
+                updateRaceDisplay();
+            }));
 
-            // Map events
-            map.on('mousemove', e => {
-                const lat = e.latlng.lat.toFixed(4);
-                const lng = Math.abs(e.latlng.lng).toFixed(4);
-                const latDir = e.latlng.lat >= 0 ? 'N' : 'S';
-                const lngDir = e.latlng.lng >= 0 ? 'E' : 'W';
-                document.getElementById('coordinates').textContent = `${lat}°${latDir}, ${lng}°${lngDir}`;
-            });
-
-            // Update location display when map stops moving
-            let moveTimeout;
-            map.on('movestart', () => {
-                if (moveTimeout) clearTimeout(moveTimeout);
-            });
+            document.getElementById('close-info-modal-btn').addEventListener('click', hideInfoModal);
+            document.getElementById('info-modal-backdrop').addEventListener('click', hideInfoModal);
+            document.getElementById('browse-gibs-btn').addEventListener('click', () => toggleGibsModal(true));
+            document.getElementById('close-gibs-modal-btn').addEventListener('click', () => toggleGibsModal(false));
+            document.getElementById('gibs-modal-backdrop').addEventListener('click', () => toggleGibsModal(false));
+            document.getElementById('browse-copernicus-btn').addEventListener('click', () => toggleCopernicusModal(true));
+            document.getElementById('close-copernicus-modal-btn').addEventListener('click', () => toggleCopernicusModal(false));
+            document.getElementById('copernicus-modal-backdrop').addEventListener('click', () => toggleCopernicusModal(false));
             
-            map.on('moveend', () => {
-                // Debounce the location update to avoid too many API calls
-                if (moveTimeout) clearTimeout(moveTimeout);
-                moveTimeout = setTimeout(updateLocationDisplay, 1000);
-            });
+            const setupModalSearch = (inputId, listId) => {
+                document.getElementById(inputId).addEventListener('input', (e) => {
+                    const searchTerm = e.target.value.toLowerCase().trim();
+                    document.querySelectorAll(`#${listId} .race-card`).forEach(item => {
+                        const title = item.querySelector('span.truncate').textContent.toLowerCase();
+                        item.style.display = title.includes(searchTerm) ? 'flex' : 'none';
+                    });
+                });
+            };
+            setupModalSearch('gibs-search-input', 'gibs-layer-list');
+            setupModalSearch('copernicus-search-input', 'copernicus-layer-list');
 
-            // Initial location update
-            setTimeout(updateLocationDisplay, 2000);
-            
-            // Panel toggles
-            document.getElementById('info-toggle').addEventListener('click', (e) => {
-                document.getElementById('info-panel-wrapper').classList.toggle('panel-wrapper-collapsed-left');
-                e.currentTarget.classList.toggle('active');
-            });
-            
-            document.getElementById('controls-toggle').addEventListener('click', (e) => {
-                document.getElementById('controls-panel-wrapper').classList.toggle('panel-wrapper-collapsed-right');
-                e.currentTarget.classList.toggle('active');
-            });
-        }
+            document.getElementById('gibs-modal').addEventListener('click', (e) => e.stopPropagation());
+            document.getElementById('copernicus-modal').addEventListener('click', (e) => e.stopPropagation());
+            document.getElementById('info-modal').addEventListener('click', (e) => e.stopPropagation());
 
-        /**
-         * Displays a toast notification with enhanced styling.
-         * @param {string} message - The message to show.
-         * @param {string} type - 'info', 'success', 'error', or 'warning'.
-         */
-        function showToast(message, type = 'info') {
-            const container = document.getElementById('toast-container');
-            const toast = document.createElement('div');
-            
-            let bgColor, borderColor, iconSVG;
-            switch (type) {
-                case 'success':
-                    bgColor = 'from-emerald-500/20 to-green-500/20';
-                    borderColor = 'border-emerald-400/30';
-                    iconSVG = `<svg class="w-5 h-5 text-emerald-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>`;
-                    break;
-                case 'error':
-                    bgColor = 'from-red-500/20 to-rose-500/20';
-                    borderColor = 'border-red-400/30';
-                    iconSVG = `<svg class="w-5 h-5 text-red-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path></svg>`;
-                    break;
-                case 'warning':
-                    bgColor = 'from-amber-500/20 to-yellow-500/20';
-                    borderColor = 'border-amber-400/30';
-                    iconSVG = `<svg class="w-5 h-5 text-amber-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path></svg>`;
-                    break;
-                default:
-                    bgColor = 'from-blue-500/20 to-cyan-500/20';
-                    borderColor = 'border-blue-400/30';
-                    iconSVG = `<svg class="w-5 h-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path></svg>`;
-            }
-
-            toast.className = `flex items-center w-full max-w-sm p-4 space-x-3 text-white bg-gradient-to-r ${bgColor} backdrop-blur-xl border ${borderColor} rounded-xl shadow-xl transform transition-all duration-500 translate-y-full opacity-0`;
-            toast.style.background = `linear-gradient(135deg, rgba(15, 23, 42, 0.9), rgba(30, 41, 59, 0.9))`;
-            toast.innerHTML = `
-                <div class="flex-shrink-0">${iconSVG}</div>
-                <div class="text-sm font-medium flex-1">${message}</div>
-            `;
-            container.appendChild(toast);
-
-            // Animate in
-            setTimeout(() => {
-                toast.classList.remove('translate-y-full', 'opacity-0');
-                toast.classList.add('animate-slide-up');
-            }, 100);
-
-            // Animate out and remove
-            setTimeout(() => {
-                toast.classList.add('opacity-0', 'translate-y-full');
-                toast.addEventListener('transitionend', () => toast.remove(), { once: true });
-            }, 5000);
-        }
-
-        /**
-         * Waits for the BLC library to be available before initializing the map.
-         */
-        function waitForBlcAndInitialize() {
-            const maxRetries = 20; // 10 seconds max wait
-            let retries = 0;
-            const interval = setInterval(() => {
-                if (typeof window.blcgl !== 'undefined' && window.blcgl.external_to_js) {
-                    clearInterval(interval);
-                    console.log('BLC library loaded successfully. Initializing map.');
-                    initializeMap();
-                    setupEventListeners();
-                    showToast('Seawise navigation system ready', 'success');
-                } else {
-                    retries++;
-                    if (retries > maxRetries) {
-                        clearInterval(interval);
-                        console.warn('BLC library failed to load within timeout.');
-                        showToast('Some chart features may be limited', 'warning');
-                        initializeMap();
-                        setupEventListeners();
-                    }
-                }
-            }, 500);
-        }
-
-        // Start the application
-        document.addEventListener('DOMContentLoaded', waitForBlcAndInitialize);
-
+        });
     </script>
 </body>
 </html>
