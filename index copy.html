@@ -303,7 +303,7 @@
         // --- Core Functions ---
 
         function initializeMap() {
-            map = L.map('map', { zoomControl: false }).setView([20, 0], 3);
+            map = L.map('map', { zoomControl: false }).setView([44.3896, -68.1902], 13);
 
             baseLayers = {
                 osm: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'),
@@ -337,7 +337,6 @@
 
             if (isActive) {
                 if (existingIndex === -1) {
-                    // Add new layers to the top of the list
                     activeOverlayOrder.unshift({ key: layerKey, source: source });
                 }
 
@@ -361,7 +360,7 @@
                         transparent: true,
                         continuousWorld: true,
                         noWrap: false,
-                        maxNativeZoom: 10, 
+                        maxNativeZoom: 12,
                         maxZoom: 20
                     });
                 }
@@ -387,7 +386,6 @@
             activeOverlayOrder.forEach((item, index) => {
                 const uniqueId = `${item.source}_${item.key}`;
                 if (allOverlays[uniqueId]) {
-                    // The layer at the top of the list (index 0) should have the highest z-index.
                     allOverlays[uniqueId].setZIndex(totalLayers - index);
                 }
             });
