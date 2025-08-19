@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Copernicus Marine Data Viewer</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+     integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+     crossorigin=""/>
+     
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        /* Custom styles for the application */
+        body {
+            font-family: 'Inter', sans-serif;
+            overflow: hidden; /* Prevent scrolling of the whole page */
+        }
+        #map {
+            height: 100vh;
+            width: 100%;
+            z-index: 10;
+        }
+        /* Custom scrollbar for the info panel */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+        /* Leaflet attribution control style */
+        .leaflet-control-attribution {
+            font-size: 10px !important;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+
+    <div id="app" class="relative w-screen h-screen flex">
+        <!-- Information and Control Panel -->
+        <div id="panel" class="absolute top-0 left-0 h-full w-full max-w-sm md:max-w-md bg-white/90 backdrop-blur-sm shadow-2xl z-20 transform transition-transform duration-300 ease-in-out p-4 flex flex-col">
+            <div class="flex-shrink-0 pb-4 border-b border-gray-200">
+                <h1 class="text-2xl font-bold text-gray-800">Copernicus Marine Viewer</h1>
+                <p class="text-sm text-gray-500 mt-1">Select a dataset to explore available map layers.</p>
+            </div>
+
+            <div class="flex-grow overflow-y-auto custom-scrollbar pt-4">
+                <!-- Dataset Selection -->
+                <div class="mb-6">
+                    <h2 class="text-lg font-semibold text-gray-700 mb-2">1. Choose a Dataset</h2>
+                    <div id="dataset-selector" class="space-y-2">
+                        <!-- Dataset buttons will be injected here -->
+                    </div>
+                </div>
+
+                <!-- Layer Information and Selection -->
+                <div id="layer-info" class="hidden">
+                    <h2 class="text-lg font-semibold text-gray-700 mb-2">2. Select a Layer</h2>
+                     <div id="loading-indicator" class="flex items-center text-gray-500 my-4">
+                        <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span>Fetching layers...</span>
+                    </div>
+                    <select id="layer-selector" class="w-full p-2 border border-gray-300 rounded-md bg-white shadow-sm focus:ring-blue-500 focus:border-blue-500"></select>
+                    
+                    <div id="layer-details" class="mt-4 p-3 bg-gray-50 rounded-lg border border-gray-200 text-sm text-gray-600">
+                        <p id="layer-abstract">Select a layer to see its description.</p>
+                    </div>
+                </div>
+                 <!-- Metadata and Documentation -->
+                <div id="metadata-info" class="hidden mt-6">
+                    <h2 class="text-lg font-semibold text-gray-700 mb-2">Dataset Documentation</h2>
+                    <div id="doc-links" class="space-y-2 text-sm">
+                        <!-- Documentation links will be injected here -->
+                    </div>
+                </div>
+            </div>
+             <!-- Panel Toggle Button -->
+            <button id="panel-toggle" class="absolute top-1/2 -right-8 transform -translate-y-1/2 bg-white/80 backdrop-blur-sm p-2 rounded-r-lg shadow-lg focus:outline-none z-30">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                </svg>
+            </button>
+        </div>
+
+        <!-- Map Container -->
+        <div id="map" class="flex-grow"></div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+     crossorigin=""></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- CONFIGURATION ---
+            const datasets = {
+                phy: {
+                    name: 'Global Ocean Physics Analysis and Forecast',
+                    productId: 'GLOBAL_ANALYSISFORECAST_PHY_001_024',
+                    // Base datasetId, date will be appended dynamically
+                    datasetId: 'cmems_mod_glo_phy-thetao_anfc_0.083deg_PT6H-i',
+                    docs: {
+                        'User Manual': 'https://catalogue.marine.copernicus.eu/documents/PUM/CMEMS-GLO-PUM-001-024.pdf',
+                        'Quality Info': 'https://catalogue.marine.copernicus.eu/documents/QUID/CMEMS-GLO-QUID-001-024.pdf'
+                    }
+                },
+                bgc: {
+                    name: 'Global Ocean Biogeochemistry Analysis and Forecast',
+                    productId: 'GLOBAL_ANALYSISFORECAST_BGC_001_028',
+                    datasetId: 'cmems_mod_glo_bgc-nut_anfc_0.25deg_P1M-m',
+                    docs: {
+                        'User Manual': 'https://catalogue.marine.copernicus.eu/documents/PUM/CMEMS-GLO-PUM-001-028.pdf',
+                        'Quality Info': 'https://catalogue.marine.copernicus.eu/documents/QUID/CMEMS-GLO-QUID-001-028.pdf'
+                    }
+                },
+                wav: {
+                    name: 'Global Ocean Waves Analysis and Forecast',
+                    productId: 'GLOBAL_ANALYSISFORECAST_WAV_001_027',
+                    datasetId: 'cmems_mod_glo_wav_anfc_0.083deg_PT3H-i',
+                    docs: {
+                        'User Manual': 'https://catalogue.marine.copernicus.eu/documents/PUM/CMEMS-GLO-PUM-001-027.pdf',
+                        'Quality Info': 'https://catalogue.marine.copernicus.eu/documents/QUID/CMEMS-GLO-QUID-001-027.pdf'
+                    }
+                }
+            };
+
+            // CORS proxy to fetch XML capabilities
+            const CORS_PROXY = 'https://api.allorigins.win/raw?url=';
+
+            // --- STATE ---
+            let currentWmtsLayer = null;
+            let layersCache = {};
+
+            // --- UI ELEMENTS ---
+            const panel = document.getElementById('panel');
+            const panelToggle = document.getElementById('panel-toggle');
+            const datasetSelector = document.getElementById('dataset-selector');
+            const layerInfo = document.getElementById('layer-info');
+            const loadingIndicator = document.getElementById('loading-indicator');
+            const layerSelector = document.getElementById('layer-selector');
+            const layerAbstract = document.getElementById('layer-abstract');
+            const metadataInfo = document.getElementById('metadata-info');
+            const docLinks = document.getElementById('doc-links');
+
+            // --- MAP INITIALIZATION ---
+            const map = L.map('map').setView([20, 0], 3);
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+                subdomains: 'abcd',
+                maxZoom: 20
+            }).addTo(map);
+
+            // --- FUNCTIONS ---
+
+            /**
+             * Populates the dataset selector buttons
+             */
+            function initializeDatasetSelector() {
+                Object.keys(datasets).forEach(key => {
+                    const ds = datasets[key];
+                    const button = document.createElement('button');
+                    button.dataset.key = key;
+                    button.textContent = ds.name;
+                    button.className = 'w-full text-left p-3 border border-gray-300 rounded-md bg-white hover:bg-blue-50 hover:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200';
+                    button.onclick = () => handleDatasetSelection(key);
+                    datasetSelector.appendChild(button);
+                });
+            }
+
+            /**
+             * Handles the selection of a new dataset
+             * @param {string} key - The key of the selected dataset
+             */
+            function handleDatasetSelection(key) {
+                // Update button styles
+                document.querySelectorAll('#dataset-selector button').forEach(btn => {
+                    btn.classList.toggle('bg-blue-100', btn.dataset.key === key);
+                    btn.classList.toggle('border-blue-500', btn.dataset.key === key);
+                });
+                
+                resetLayerSelection();
+                layerInfo.style.display = 'block';
+                loadingIndicator.style.display = 'flex';
+                layerAbstract.textContent = 'Select a layer to see its description.';
+
+
+                updateDocumentation(key);
+                fetchAndParseCapabilities(key);
+            }
+
+            /**
+             * Fetches and parses WMTS GetCapabilities XML.
+             * It dynamically creates the dataset ID with the current year/month
+             * and falls back to previous months if the current one fails.
+             * @param {string} key - The dataset key
+             */
+            async function fetchAndParseCapabilities(key) {
+                if (layersCache[key]) {
+                    populateLayerSelector(layersCache[key]);
+                    return;
+                }
+
+                const ds = datasets[key];
+                const now = new Date();
+
+                // Try to fetch for the current month, then the previous 3 months as a fallback.
+                for (let i = 0; i < 4; i++) {
+                    const dateToTry = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                    const year = dateToTry.getFullYear();
+                    const month = (dateToTry.getMonth() + 1).toString().padStart(2, '0');
+                    const datedDatasetId = `${ds.datasetId}_${year}${month}`;
+                    
+                    const capabilitiesUrl = `https://wmts.marine.copernicus.eu/teroWmts/${ds.productId}/${datedDatasetId}?service=WMTS&request=GetCapabilities&version=1.0.0`;
+                    
+                    try {
+                        const response = await fetch(`${CORS_PROXY}${encodeURIComponent(capabilitiesUrl)}`);
+                        if (!response.ok) {
+                            if (i < 3) { // Continue trying if it's not the last attempt
+                                console.warn(`Failed to fetch capabilities for ${year}-${month} (HTTP ${response.status}). Trying previous month.`);
+                                continue; 
+                            }
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        
+                        const xmlText = await response.text();
+                        const parser = new DOMParser();
+                        const xmlDoc = parser.parseFromString(xmlText, "text/xml");
+
+                        // Check if the response is a service exception from Copernicus
+                        if (xmlDoc.querySelector("ServiceException")) {
+                             if (i < 3) {
+                                console.warn(`Service exception for ${year}-${month}. Trying previous month.`);
+                                continue;
+                            }
+                            throw new Error(`Service Exception: ${xmlDoc.querySelector("ServiceException").textContent}`);
+                        }
+                        
+                        const layers = parseLayersFromXML(xmlDoc);
+                        if (layers.length > 0) {
+                            layersCache[key] = layers;
+                            populateLayerSelector(layers);
+                            return; // Success, exit the function
+                        } else {
+                             if (i < 3) {
+                                console.warn(`No layers found for ${year}-${month}. Trying previous month.`);
+                                continue;
+                            }
+                        }
+
+                    } catch (error) {
+                         if (i < 3) {
+                            console.error(`Error fetching for ${year}-${month}:`, error);
+                            continue; // Try next month
+                        }
+                        console.error("Failed to fetch or parse capabilities after retries:", error);
+                        layerAbstract.textContent = 'Error: Could not load layers. The service may be unavailable or the dataset ID has changed.';
+                        loadingIndicator.style.display = 'none';
+                        return; // Exit after final failure
+                    }
+                }
+
+                // This part is reached if all months fail to produce layers
+                console.error("No layers found after checking the last 4 months.");
+                layerAbstract.textContent = 'Error: No layers could be found for this dataset. Data may be temporarily unavailable.';
+                loadingIndicator.style.display = 'none';
+            }
+
+
+            /**
+             * Parses layer information from the GetCapabilities XML document
+             * @param {XMLDocument} xmlDoc - The parsed XML document
+             * @returns {Array} An array of layer objects
+             */
+            function parseLayersFromXML(xmlDoc) {
+                const layerNodes = xmlDoc.querySelectorAll("Contents > Layer");
+                const layers = [];
+                layerNodes.forEach(node => {
+                    const identifier = node.querySelector("Identifier")?.textContent;
+                    const title = node.querySelector("Title")?.textContent;
+                    const abstract = node.querySelector("Abstract")?.textContent;
+                    const resourceUrlNode = node.querySelector('ResourceURL[format="image/png"]');
+                    const templateUrl = resourceUrlNode?.getAttribute('template');
+
+                    if (identifier && title && templateUrl) {
+                        layers.push({ identifier, title, abstract, templateUrl });
+                    }
+                });
+                return layers;
+            }
+
+            /**
+             * Populates the layer dropdown with parsed layers
+             * @param {Array} layers - Array of layer objects
+             */
+            function populateLayerSelector(layers) {
+                layerSelector.innerHTML = '<option value="">-- Select a layer --</option>';
+                layers.forEach(layer => {
+                    const option = document.createElement('option');
+                    option.value = layer.identifier;
+                    option.textContent = layer.title;
+                    option.dataset.abstract = layer.abstract || 'No description available.';
+                    option.dataset.templateUrl = layer.templateUrl;
+                    layerSelector.appendChild(option);
+                });
+                loadingIndicator.style.display = 'none';
+            }
+            
+            /**
+             * Handles selection of a layer from the dropdown
+             */
+            function handleLayerChange() {
+                const selectedOption = layerSelector.options[layerSelector.selectedIndex];
+                if (!selectedOption.value) {
+                    resetLayerSelection();
+                    return;
+                }
+
+                layerAbstract.textContent = selectedOption.dataset.abstract;
+                const templateUrl = selectedOption.dataset.templateUrl;
+                
+                if (currentWmtsLayer) {
+                    map.removeLayer(currentWmtsLayer);
+                }
+
+                currentWmtsLayer = L.tileLayer(templateUrl, {
+                    attribution: 'Copernicus Marine Service',
+                    transparent: true,
+                    format: 'image/png'
+                }).addTo(map);
+            }
+
+            /**
+             * Updates the documentation links section
+             * @param {string} key - The dataset key
+             */
+            function updateDocumentation(key) {
+                const ds = datasets[key];
+                docLinks.innerHTML = '';
+                Object.entries(ds.docs).forEach(([name, url]) => {
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.target = '_blank';
+                    link.rel = 'noopener noreferrer';
+                    link.className = 'block p-2 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors';
+                    link.textContent = name;
+                    docLinks.appendChild(link);
+                });
+                metadataInfo.style.display = 'block';
+            }
+            
+            /**
+             * Resets the layer selection UI and removes the map layer
+             */
+            function resetLayerSelection() {
+                if (currentWmtsLayer) {
+                    map.removeLayer(currentWmtsLayer);
+                    currentWmtsLayer = null;
+                }
+                layerSelector.innerHTML = '<option value="">-- Select a layer --</option>';
+                layerAbstract.textContent = 'Select a layer to see its description.';
+            }
+
+            /**
+             * Toggles the visibility of the side panel
+             */
+            function togglePanel() {
+                panel.classList.toggle('-translate-x-full');
+                const icon = panelToggle.querySelector('svg');
+                if (panel.classList.contains('-translate-x-full')) {
+                    icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />';
+                } else {
+                    icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />';
+                }
+            }
+
+            // --- EVENT LISTENERS ---
+            layerSelector.addEventListener('change', handleLayerChange);
+            panelToggle.addEventListener('click', togglePanel);
+
+            // --- INITIALIZATION ---
+            initializeDatasetSelector();
+        });
+    </script>
+</body>
+</html>

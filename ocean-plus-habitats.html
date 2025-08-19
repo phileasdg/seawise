@@ -1,0 +1,1204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ocean Plus Habitat Viewer</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            overflow: hidden;
+        }
+
+        .header {
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+            position: relative;
+            z-index: 1000;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: 300;
+            color: #4fc3f7;
+            text-align: center;
+        }
+
+        .cors-notice {
+            background: rgba(255, 152, 0, 0.9);
+            padding: 10px 20px;
+            text-align: center;
+            font-size: 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .container {
+            display: flex;
+            height: calc(100vh - 110px);
+        }
+
+        .sidebar {
+            width: 350px;
+            background: rgba(0, 0, 0, 0.9);
+            padding: 20px;
+            overflow-y: auto;
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .sidebar h2 {
+            color: #4fc3f7;
+            margin-bottom: 20px;
+            font-size: 18px;
+            font-weight: 400;
+        }
+
+        .proxy-setup {
+            background: rgba(255, 193, 7, 0.2);
+            border: 1px solid rgba(255, 193, 7, 0.5);
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 20px;
+            font-size: 12px;
+        }
+
+        .proxy-setup h3 {
+            color: #ffc107;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        .proxy-input {
+            width: 100%;
+            padding: 8px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 4px;
+            color: white;
+            font-size: 12px;
+            margin: 8px 0;
+        }
+
+        .proxy-input::placeholder {
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .test-services {
+            background: rgba(76, 175, 80, 0.2);
+            border: 1px solid rgba(76, 175, 80, 0.5);
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .test-services h3 {
+            color: #4caf50;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        .test-button {
+            background: #4caf50;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            margin-right: 8px;
+            margin-bottom: 8px;
+        }
+
+        .test-button:hover {
+            background: #45a049;
+        }
+
+        .search-box {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            color: white;
+            font-size: 14px;
+        }
+
+        .search-box::placeholder {
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .loading-services {
+            text-align: center;
+            padding: 20px;
+            color: #4fc3f7;
+            font-style: italic;
+        }
+
+        .service-category {
+            margin-bottom: 20px;
+        }
+
+        .service-category h3 {
+            color: #81c784;
+            font-size: 14px;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            cursor: pointer;
+            padding: 5px 0;
+            border-bottom: 1px solid rgba(129, 199, 132, 0.3);
+        }
+
+        .service-category h3:hover {
+            color: #a5d6a7;
+        }
+
+        .service-category.collapsed .service-list {
+            display: none;
+        }
+
+        .service-category h3::before {
+            content: '▼ ';
+            font-size: 10px;
+            margin-right: 5px;
+        }
+
+        .service-category.collapsed h3::before {
+            content: '▶ ';
+        }
+
+        .service-list {
+            display: block;
+        }
+
+        .service-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            padding: 8px;
+            border-radius: 6px;
+            transition: background-color 0.2s;
+            font-size: 12px;
+        }
+
+        .service-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .service-item input[type="checkbox"] {
+            margin-right: 10px;
+            transform: scale(1.1);
+        }
+
+        .service-item label {
+            flex: 1;
+            cursor: pointer;
+            color: #e0e0e0;
+            line-height: 1.3;
+        }
+
+        .service-status {
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 3px;
+            margin-left: 8px;
+        }
+
+        .service-status.working {
+            background: rgba(76, 175, 80, 0.3);
+            color: #4caf50;
+        }
+
+        .service-status.error {
+            background: rgba(244, 67, 54, 0.3);
+            color: #f44336;
+        }
+
+        .service-status.testing {
+            background: rgba(255, 193, 7, 0.3);
+            color: #ffc107;
+        }
+
+        .service-type {
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 3px;
+            margin-left: 8px;
+            background: rgba(79, 195, 247, 0.3);
+            color: #4fc3f7;
+        }
+
+        .service-type.vector {
+            background: rgba(129, 199, 132, 0.3);
+            color: #81c784;
+        }
+
+        .service-type.feature {
+            background: rgba(255, 183, 77, 0.3);
+            color: #ffb74d;
+        }
+
+        .opacity-control {
+            margin-left: 10px;
+            width: 50px;
+            display: none;
+        }
+
+        .service-item.active .opacity-control {
+            display: block;
+        }
+
+        .opacity-control input {
+            width: 100%;
+            height: 4px;
+            background: #333;
+            outline: none;
+            border-radius: 2px;
+        }
+
+        #map {
+            flex: 1;
+            position: relative;
+        }
+
+        .info-panel {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border-radius: 8px;
+            max-width: 300px;
+            font-size: 12px;
+            line-height: 1.4;
+            z-index: 500;
+        }
+
+        .leaflet-container {
+            background: #0a1929;
+        }
+
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #4fc3f7;
+            font-size: 16px;
+            z-index: 1000;
+            text-align: center;
+        }
+
+        .zoom-info {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            z-index: 500;
+        }
+
+        .layer-count {
+            position: absolute;
+            top: 80px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            z-index: 500;
+            color: #4fc3f7;
+        }
+
+        .notification {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            background: rgba(255, 152, 0, 0.9);
+            color: white;
+            padding: 12px 16px;
+            border-radius: 6px;
+            font-size: 12px;
+            z-index: 2000;
+            max-width: 300px;
+            animation: slideIn 0.3s ease-out;
+            line-height: 1.4;
+        }
+
+        .notification.error {
+            background: rgba(244, 67, 54, 0.9);
+        }
+
+        .notification.success {
+            background: rgba(76, 175, 80, 0.9);
+        }
+
+        .notification.info {
+            background: rgba(33, 150, 243, 0.9);
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(79, 195, 247, 0.6);
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(79, 195, 247, 0.8);
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🌊 Ocean Plus Habitat Viewer</h1>
+    </div>
+
+    <div class="cors-notice">
+        ⚠️ Note: Many ESRI services require CORS proxy or authentication. This demo shows the interface and tests connectivity.
+    </div>
+
+    <div class="container">
+        <div class="sidebar">
+            <h2>UNEP-WCMC Services</h2>
+            
+            <div class="proxy-setup">
+                <h3>🔧 CORS Proxy Setup</h3>
+                <p>To load actual data, configure a CORS proxy:</p>
+                <input type="text" class="proxy-input" id="proxy-url" placeholder="https://your-proxy.com/api/proxy?url=">
+                <button class="test-button" onclick="oceanViewer.testProxyConnection()">Test Proxy</button>
+            </div>
+
+            <div class="test-services">
+                <h3>🧪 Test Connectivity</h3>
+                <p>Test UNEP-WCMC service accessibility:</p>
+                <button class="test-button" onclick="oceanViewer.testDirectAccess()">Test ESRI Services</button>
+                <button class="test-button" onclick="oceanViewer.            loadSampleLayers() {
+                this.showNotification('Loading sample ocean habitat layers...', 'info');
+                
+                // Load a few representative layers to demonstrate functionality
+                const sampleServices = [
+                    'Global_Distribution_of_Sea_Turtle_Feeding_Sites',  // FeatureServer
+                    'Global_Mangrove_Watch',  // FeatureServer
+                    'ChEssBase_ColdSeeps'     // FeatureServer - simpler to start with
+                ];
+                
+                sampleServices.forEach((serviceName, index) => {
+                    setTimeout(() => {
+                        const checkbox = document.querySelector(`[data-service="${serviceName}"]`);
+                        if (checkbox) {
+                            checkbox.checked = true;
+                            checkbox.dispatchEvent(new Event('change'));
+                        }
+                    }, index * 2000); // Stagger loading by 2 seconds each
+                });
+            }
+
+            async testDirectAccess() {
+                this.showNotification('Testing direct access to UNEP-WCMC services...', 'info');
+                
+                // Test with a simple FeatureServer first
+                const testService = 'Global_Distribution_of_Sea_Turtle_Feeding_Sites';
+                
+                // Check if ESRI Leaflet is loaded
+                if (typeof L.esri === 'undefined') {
+                    this.showNotification('✗ ESRI Leaflet not loaded. Please refresh the page.', 'error');
+                    return;
+                }
+                
+                try {
+                    const testLayer = L.esri.featureLayer({
+                        url: `${this.baseUrl}/${testService}`
+                    });
+                    
+                    testLayer.on('load', () => {
+                        this.showNotification('✓ Direct access working! Services should load properly.', 'success');
+                        this.updateServiceStatus(testService, 'working');
+                        this.map.removeLayer(testLayer); // Remove test layer
+                    });
+                    
+                    testLayer.on('error', (error) => {
+                        this.showNotification(`✗ Direct access failed: ${error.message || 'Service unavailable'}`, 'error');
+                        this.updateServiceStatus(testService, 'error', 'Direct access blocked');
+                    });
+                    
+                    testLayer.addTo(this.map);
+                    
+                    // Remove test layer after 5 seconds
+                    setTimeout(() => {
+                        if (this.map.hasLayer(testLayer)) {
+                            this.map.removeLayer(testLayer);
+                        }
+                    }, 5000);
+                    
+                } catch (error) {
+                    this.showNotification(`✗ Direct access error: ${error.message}`, 'error');
+                    this.updateServiceStatus(testService, 'error', 'Direct access failed');
+                }
+            }
+
+            async testWMSAccess() {
+                // Remove this method as it's no longer needed with proper ESRI Leaflet
+                this.showNotification('WMS testing not needed with ESRI Leaflet integration', 'info');
+            }
+
+            async testJSONPAccess() {
+                // Remove this method as it's no longer needed with proper ESRI Leaflet
+                this.showNotification('JSONP testing not needed with ESRI Leaflet integration', 'info');
+            }
+
+            // Remove the complex fallback methods since we're using proper ESRI Leaflet
+            async tryVectorTileLayer(serviceUrl, serviceName) {
+                // This method is no longer needed with proper ESRI Leaflet
+                throw new Error('Use direct ESRI Leaflet Vector implementation');
+            }
+
+            async tryFeatureLayer(serviceUrl, serviceName) {
+                // This method is no longer needed with proper ESRI Leaflet
+                throw new Error('Use direct ESRI Leaflet FeatureLayer implementation');
+            }
+
+            async tryMapServerLayer(serviceUrl, serviceName) {
+                // This method is no longer needed with proper ESRI Leaflet
+                throw new Error('Use direct ESRI Leaflet DynamicMapLayer implementation');
+            }
+
+            async testLayerLoad(layer) {
+                // This method is no longer needed with proper ESRI Leaflet event handling
+                return Promise.resolve(layer);
+            }">Load Sample Layers</button>
+            </div>
+
+            <input type="text" class="search-box" id="search-services" placeholder="Search services...">
+            
+            <div id="services-container">
+                <div class="loading-services">Loading services from ESRI directory...</div>
+            </div>
+        </div>
+
+        <div id="map">
+            <div class="loading" id="loading">
+                Initializing Ocean Viewer...<br>
+                <small>Loading ESRI services and map components</small>
+            </div>
+            <div class="zoom-info">
+                <div>Zoom: <span id="zoom-level">2</span></div>
+                <div>Lat: <span id="lat">0.00</span></div>
+                <div>Lng: <span id="lng">0.00</span></div>
+            </div>
+            <div class="layer-count">
+                Active Layers: <span id="active-count">0</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="info-panel">
+        <strong>🌊 Ocean Plus Habitat Viewer</strong><br>
+        Interface for UNEP-WCMC ESRI services.<br>
+        <em>Due to CORS restrictions, you may need a proxy server to load actual data.</em><br><br>
+        <strong>Solutions:</strong><br>
+        • Set up CORS proxy server<br>
+        • Use ESRI ArcGIS API with authentication<br>
+        • Access data through UNEP-WCMC portal directly
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+    <script>
+        class OceanViewer {
+            constructor() {
+                this.map = null;
+                this.activeLayers = new Map();
+                this.services = [];
+                this.baseUrl = 'https://data-gis.unep-wcmc.org/server/rest/services/Hosted';
+                this.proxyUrl = '';
+                this.testResults = new Map();
+                this.init();
+            }
+
+            async init() {
+                this.initMap();
+                await this.loadServices();
+                this.bindEvents();
+                this.addSampleData();
+                this.hideLoading();
+            }
+
+            initMap() {
+                this.map = L.map('map', {
+                    center: [20, 0],
+                    zoom: 2,
+                    minZoom: 1,
+                    maxZoom: 18,
+                    zoomControl: true
+                });
+
+                // Add CartoDB Dark base layer optimized for ocean data
+                L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png', {
+                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+                    subdomains: 'abcd',
+                    maxZoom: 20
+                }).addTo(this.map);
+
+                // Add boundaries layer
+                L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png', {
+                    attribution: '',
+                    subdomains: 'abcd',
+                    maxZoom: 20,
+                    opacity: 0.4
+                }).addTo(this.map);
+
+                // Event listeners
+                this.map.on('mousemove', (e) => {
+                    document.getElementById('lat').textContent = e.latlng.lat.toFixed(2);
+                    document.getElementById('lng').textContent = e.latlng.lng.toFixed(2);
+                });
+
+                this.map.on('zoomend', () => {
+                    document.getElementById('zoom-level').textContent = this.map.getZoom();
+                });
+            }
+
+            async loadServices() {
+                try {
+                    // Parse the actual HTML services list from the UNEP-WCMC directory
+                    const servicesHTML = `
+                        <li><a href="/server/rest/services/Hosted/A_Modelled_Global_Distribution_of_the_Kelp_Biome_/FeatureServer">Hosted/A_Modelled_Global_Distribution_of_the_Kelp_Biome_</a> (FeatureServer)</li>
+                        <li><a href="/server/rest/services/Hosted/Aqueduct_Global_Maps_water_depletion/VectorTileServer">Hosted/Aqueduct_Global_Maps_water_depletion</a> (VectorTileServer)</li>
+                        <li><a href="/server/rest/services/Hosted/Bailey_Ecoregions_1989/FeatureServer">Hosted/Bailey_Ecoregions_1989</a> (FeatureServer)</li>
+                        <li><a href="/server/rest/services/Hosted/Basemap_Template/VectorTileServer">Hosted/Basemap_Template</a> (VectorTileServer)</li>
+                        <li><a href="/server/rest/services/Hosted/bws_aqu/VectorTileServer">Hosted/bws_aqu</a> (VectorTileServer)</li>
+                        <li><a href="/server/rest/services/Hosted/ChEssBase_ColdSeeps/FeatureServer">Hosted/ChEssBase_ColdSeeps</a> (FeatureServer)</li>
+                        <li><a href="/server/rest/services/Hosted/ChEssBase_HydroVents/FeatureServer">Hosted/ChEssBase_HydroVents</a> (FeatureServer)</li>
+                        <li><a href="/server/rest/services/Hosted/CI_BiodiversityHotspots_2016/FeatureServer">Hosted/CI_BiodiversityHotspots_2016</a> (FeatureServer)</li>
+                        <li><a href="/server/rest/services/Hosted/Cold_Coral_Projection/VectorTileServer">Hosted/Cold_Coral_Projection</a> (VectorTileServer)</li>
+                        <li><a href="/server/rest/services/Hosted/Coral_Reef_Projection/VectorTileServer">Hosted/Coral_Reef_Projection</a> (VectorTileServer)</li>
+                        <li><a href="/server/rest/services/Hosted/drr_aqu/VectorTileServer">Hosted/drr_aqu</a> (VectorTileServer)</li>
+                        <li><a href="/server/rest/services/Hosted/Earth_at_Night_2016_3km/MapServer">Hosted/Earth_at_Night_2016_3km</a> (MapServer)</li>
+                        <li><a href="/server/rest/services/Hosted/FAO_aqu_prod/VectorTileServer">Hosted/FAO_aqu_prod</a> (VectorTileServer)</li>
+                        <li><a href="/server/rest/services/Hosted/FAO_fisheries_v2/VectorTileServer">Hosted/FAO_fisheries_v2</a> (VectorTileServer)</li>
+                        <li><a href="/server/rest/services/Hosted/GDW/VectorTileServer">Hosted/GDW</a> (VectorTileServer)</li>
+                        <li><a href="/server/rest/services/Hosted/glasod_encore/VectorTileServer">Hosted/glasod_encore</a> (VectorTileServer)</li>
+                        <li><a href="/server/rest/services/Hosted/Global_Distribution_of_Cold_water_Corals/VectorTileServer">Hosted/Global_Distribution_of_Cold_water_Corals</a> (VectorTileServer)</li>
+                        <li><a href="/server/rest/services/Hosted/Global_Distribution_of_Coral_Reefs/VectorTileServer">Hosted/Global_Distribution_of_Coral_Reefs</a> (VectorTileServer)</li>
+                        <li><a href="/server/rest/services/Hosted/Global_Distribution_of_Saltmarshes/VectorTileServer">Hosted/Global_Distribution_of_Saltmarshes</a> (VectorTileServer)</li>
+                        <li><a href="/server/rest/services/Hosted/Global_Distribution_of_Sea_Turtle_Feeding_Sites/FeatureServer">Hosted/Global_Distribution_of_Sea_Turtle_Feeding_Sites</a> (FeatureServer)</li>
+                        <li><a href="/server/rest/services/Hosted/Global_Distribution_of_Seagrasses/VectorTileServer">Hosted/Global_Distribution_of_Seagrasses</a> (VectorTileServer)</li>
+                        <li><a href="/server/rest/services/Hosted/Global_EBSAs/FeatureServer">Hosted/Global_EBSAs</a> (FeatureServer)</li>
+                        <li><a href="/server/rest/services/Hosted/Global_Fishing_Catch/VectorTileServer">Hosted/Global_Fishing_Catch</a> (VectorTileServer)</li>
+                        <li><a href="/server/rest/services/Hosted/Global_Mangrove_Watch_2016/VectorTileServer">Hosted/Global_Mangrove_Watch_2016</a> (VectorTileServer)</li>
+                        <li><a href="/server/rest/services/Hosted/Global_Mangrove_Watch/FeatureServer">Hosted/Global_Mangrove_Watch</a> (FeatureServer)</li>
+                        <li><a href="/server/rest/services/Hosted/gmw_latest_vt/VectorTileServer">Hosted/gmw_latest_vt</a> (VectorTileServer)</li>
+                        <li><a href="/server/rest/services/Hosted/GPWv4_PopDens/MapServer">Hosted/GPWv4_PopDens</a> (MapServer)</li>
+                        <li><a href="/server/rest/services/Hosted/gtd_aqu/VectorTileServer">Hosted/gtd_aqu</a> (VectorTileServer)</li>
+                        <li><a href="/server/rest/services/Hosted/iav_aqu/VectorTileServer">Hosted/iav_aqu</a> (VectorTileServer)</li>
+                        <li><a href="/server/rest/services/Hosted/icca_registry/VectorTileServer">Hosted/icca_registry</a> (VectorTileServer)</li>
+                        <li><a href="/server/rest/services/Hosted/lake_quality_v3/VectorTileServer">Hosted/lake_quality_v3</a> (VectorTileServer)</li>
+                        <li><a href="/server/rest/services/Hosted/Land_Cover_Map_FAO_2002/MapServer">Hosted/Land_Cover_Map_FAO_2002</a> (MapServer)</li>
+                        <li><a href="/server/rest/services/Hosted/Mangrove_Protection/VectorTileServer">Hosted/Mangrove_Protection</a> (VectorTileServer)</li>
+                        <li><a href="/server/rest/services/Hosted/Map_of_Eutrophication_and_Hypoxia/VectorTileServer">Hosted/Map_of_Eutrophication_and_Hypoxia</a> (VectorTileServer)</li>
+                        <li><a href="/server/rest/services/Hosted/MaxentModeledSeagrassExtent/FeatureServer">Hosted/MaxentModeledSeagrassExtent</a> (FeatureServer)</li>
+                        <li><a href="/server/rest/services/Hosted/MiCO_MigratoryConnectivityInTheOcean/FeatureServer">Hosted/MiCO_MigratoryConnectivityInTheOcean</a> (FeatureServer)</li>
+                        <li><a href="/server/rest/services/Hosted/oecm_latest_vts/VectorTileServer">Hosted/oecm_latest_vts</a> (VectorTileServer)</li>
+                        <li><a href="/server/rest/services/Hosted/WDOECM_Marine_Coastal/VectorTileServer">Hosted/WDOECM_Marine_Coastal</a> (VectorTileServer)</li>
+                        <li><a href="/server/rest/services/Hosted/wdpa_latest_licensed_vts/VectorTileServer">Hosted/wdpa_latest_licensed_vts</a> (VectorTileServer)</li>
+                        <li><a href="/server/rest/services/Hosted/wdpa_latest_vts/VectorTileServer">Hosted/wdpa_latest_vts</a> (VectorTileServer)</li>
+                        <li><a href="/server/rest/services/Hosted/WDPA_Marine_Coastal/VectorTileServer">Hosted/WDPA_Marine_Coastal</a> (VectorTileServer)</li>
+                        <li><a href="/server/rest/services/Hosted/WDPA_WDOECM_Licensed/VectorTileServer">Hosted/WDPA_WDOECM_Licensed</a> (VectorTileServer)</li>
+                        <li><a href="/server/rest/services/Hosted/WDPA_WDOECM/VectorTileServer">Hosted/WDPA_WDOECM</a> (VectorTileServer)</li>
+                        <li><a href="/server/rest/services/Hosted/What_A_Waste_Global_Database/VectorTileServer">Hosted/What_A_Waste_Global_Database</a> (VectorTileServer)</li>
+                    `;
+
+                    this.services = this.parseServicesFromHTML(servicesHTML);
+                    this.renderServices();
+                    this.showNotification(`Loaded ${this.services.length} services from UNEP-WCMC directory`, 'success');
+                } catch (error) {
+                    console.error('Error loading services:', error);
+                    this.showNotification('Error parsing ESRI services directory', 'error');
+                }
+            }
+
+            parseServicesFromHTML(htmlString) {
+                const services = [];
+                const regex = /Hosted\/([^<]+)<\/a>\s*\((\w+)\)/g;
+                let match;
+
+                while ((match = regex.exec(htmlString)) !== null) {
+                    const [, name, type] = match;
+                    services.push({
+                        name: name.replace(/_/g, ' '),
+                        serviceName: name,
+                        type: type,
+                        category: this.categorizeService(name),
+                        status: 'unknown'
+                    });
+                }
+
+                return services.sort((a, b) => a.category.localeCompare(b.category) || a.name.localeCompare(b.name));
+            }
+
+            categorizeService(name) {
+                const lower = name.toLowerCase();
+                
+                if (lower.includes('coral') || lower.includes('reef')) {
+                    return '🪸 Coral Ecosystems';
+                } else if (lower.includes('mangrove') || lower.includes('seagrass') || lower.includes('saltmarsh') || lower.includes('kelp')) {
+                    return '🌿 Coastal Vegetation';
+                } else if (lower.includes('wdpa') || lower.includes('marine') || lower.includes('protected') || lower.includes('oecm')) {
+                    return '🛡️ Marine Protection';
+                } else if (lower.includes('turtle') || lower.includes('whale') || lower.includes('seal') || lower.includes('dolphin') || lower.includes('biodiversity')) {
+                    return '🐢 Marine Life';
+                } else if (lower.includes('fishing') || lower.includes('catch') || lower.includes('aqua') || lower.includes('eutrophication')) {
+                    return '🎣 Human Activities';
+                } else if (lower.includes('water') || lower.includes('quality') || lower.includes('lake') || lower.includes('river')) {
+                    return '💧 Water Systems';
+                } else if (lower.includes('boundaries') || lower.includes('countries') || lower.includes('ecoregion')) {
+                    return '🗺️ Geographic Reference';
+                } else if (lower.includes('population') || lower.includes('night') || lower.includes('waste')) {
+                    return '🏙️ Human Geography';
+                } else {
+                    return '📊 Other Data';
+                }
+            }
+
+            renderServices() {
+                const container = document.getElementById('services-container');
+                container.innerHTML = '';
+
+                const categories = {};
+                this.services.forEach(service => {
+                    if (!categories[service.category]) {
+                        categories[service.category] = [];
+                    }
+                    categories[service.category].push(service);
+                });
+
+                Object.keys(categories).forEach(category => {
+                    const categoryDiv = document.createElement('div');
+                    categoryDiv.className = 'service-category';
+                    
+                    const header = document.createElement('h3');
+                    header.textContent = `${category} (${categories[category].length})`;
+                    header.addEventListener('click', () => {
+                        categoryDiv.classList.toggle('collapsed');
+                    });
+
+                    const serviceList = document.createElement('div');
+                    serviceList.className = 'service-list';
+
+                    categories[category].forEach(service => {
+                        const serviceItem = document.createElement('div');
+                        serviceItem.className = 'service-item';
+                        serviceItem.dataset.serviceName = service.serviceName;
+                        
+                        const checkbox = document.createElement('input');
+                        checkbox.type = 'checkbox';
+                        checkbox.id = `service-${service.serviceName}`;
+                        checkbox.dataset.service = service.serviceName;
+                        checkbox.dataset.type = service.type;
+
+                        const label = document.createElement('label');
+                        label.htmlFor = checkbox.id;
+                        label.textContent = service.name;
+
+                        const typeSpan = document.createElement('span');
+                        typeSpan.className = `service-type ${service.type.toLowerCase()}`;
+                        typeSpan.textContent = service.type;
+
+                        const statusSpan = document.createElement('span');
+                        statusSpan.className = 'service-status';
+                        statusSpan.textContent = 'untested';
+
+                        const opacityControl = document.createElement('div');
+                        opacityControl.className = 'opacity-control';
+                        const opacitySlider = document.createElement('input');
+                        opacitySlider.type = 'range';
+                        opacitySlider.min = '0';
+                        opacitySlider.max = '1';
+                        opacitySlider.step = '0.1';
+                        opacitySlider.value = '0.7';
+                        opacitySlider.dataset.layer = service.serviceName;
+                        opacityControl.appendChild(opacitySlider);
+
+                        serviceItem.appendChild(checkbox);
+                        serviceItem.appendChild(label);
+                        serviceItem.appendChild(typeSpan);
+                        serviceItem.appendChild(statusSpan);
+                        serviceItem.appendChild(opacityControl);
+                        serviceList.appendChild(serviceItem);
+                    });
+
+                    categoryDiv.appendChild(header);
+                    categoryDiv.appendChild(serviceList);
+                    container.appendChild(categoryDiv);
+                });
+            }
+
+            updateServiceStatus(serviceName, status, message = '') {
+                const serviceItem = document.querySelector(`[data-service-name="${serviceName}"]`);
+                if (serviceItem) {
+                    const statusSpan = serviceItem.querySelector('.service-status');
+                    statusSpan.className = `service-status ${status}`;
+                    statusSpan.textContent = status === 'working' ? '✓' : status === 'error' ? '✗' : '⟳';
+                    if (message) {
+                        statusSpan.title = message;
+                    }
+                }
+            }
+
+            async testProxyConnection() {
+                const proxyUrl = document.getElementById('proxy-url').value.trim();
+                if (!proxyUrl) {
+                    this.showNotification('Please enter a proxy URL first', 'error');
+                    return;
+                }
+
+                this.proxyUrl = proxyUrl;
+                this.showNotification('Testing proxy connection...', 'info');
+
+                try {
+                    const testUrl = `${proxyUrl}${this.baseUrl}/Global_Distribution_of_Coral_Reefs/VectorTileServer`;
+                    const response = await fetch(testUrl);
+                    
+                    if (response.ok) {
+                        this.showNotification('Proxy connection successful! You can now load layers.', 'success');
+                    } else {
+                        this.showNotification(`Proxy test failed: ${response.status} ${response.statusText}`, 'error');
+                    }
+                } catch (error) {
+                    this.showNotification(`Proxy test error: ${error.message}`, 'error');
+                }
+            }
+
+            async testDirectAccess() {
+                this.showNotification('Testing direct access to UNEP-WCMC services...', 'info');
+                
+                // Test with a simple FeatureServer first
+                const testService = 'Global_Distribution_of_Sea_Turtle_Feeding_Sites';
+                try {
+                    const testLayer = L.esri.featureLayer({
+                        url: `${this.baseUrl}/${testService}`
+                    });
+                    
+                    testLayer.on('load', () => {
+                        this.showNotification('✓ Direct access working! Services should load properly.', 'success');
+                        this.updateServiceStatus(testService, 'working');
+                        this.map.removeLayer(testLayer); // Remove test layer
+                    });
+                    
+                    testLayer.on('error', (error) => {
+                        this.showNotification(`✗ Direct access failed: ${error.message || 'Service unavailable'}`, 'error');
+                        this.updateServiceStatus(testService, 'error', 'Direct access blocked');
+                    });
+                    
+                    testLayer.addTo(this.map);
+                    
+                    // Remove test layer after 5 seconds
+                    setTimeout(() => {
+                        if (this.map.hasLayer(testLayer)) {
+                            this.map.removeLayer(testLayer);
+                        }
+                    }, 5000);
+                    
+                } catch (error) {
+                    this.showNotification(`✗ Direct access error: ${error.message}`, 'error');
+                    this.updateServiceStatus(testService, 'error', 'Direct access failed');
+                }
+            }
+
+            async testWMSAccess() {
+                this.showNotification('Testing WMS access...', 'info');
+                
+                const testService = 'Global_Distribution_of_Coral_Reefs';
+                try {
+                    // Try WMS GetCapabilities
+                    const wmsUrl = `${this.baseUrl}/${testService}/MapServer/WMSServer?service=WMS&request=GetCapabilities`;
+                    const response = await fetch(wmsUrl);
+                    
+                    if (response.ok) {
+                        this.showNotification('WMS access working! Some layers may load via WMS.', 'success');
+                        this.updateServiceStatus(testService, 'error', 'WMS failed');
+                    }
+                } catch (error) {
+                    this.showNotification(`WMS test error: ${error.message}`, 'error');
+                    this.updateServiceStatus(testService, 'error', 'WMS blocked');
+                }
+            }
+
+            async testJSONPAccess() {
+                this.showNotification('Testing JSONP access...', 'info');
+                
+                const testService = 'Global_Distribution_of_Coral_Reefs';
+                try {
+                    // Try JSONP callback
+                    const script = document.createElement('script');
+                    script.src = `${this.baseUrl}/${testService}/VectorTileServer?f=json&callback=testCallback`;
+                    
+                    window.testCallback = (data) => {
+                        this.showNotification('JSONP access working!', 'success');
+                        this.updateServiceStatus(testService, 'working');
+                        document.head.removeChild(script);
+                        delete window.testCallback;
+                    };
+                    
+                    script.onerror = () => {
+                        this.showNotification('JSONP access failed', 'error');
+                        this.updateServiceStatus(testService, 'error', 'JSONP failed');
+                        document.head.removeChild(script);
+                        delete window.testCallback;
+                    };
+                    
+                    document.head.appendChild(script);
+                    
+                    // Timeout after 5 seconds
+                    setTimeout(() => {
+                        if (window.testCallback) {
+                            this.showNotification('JSONP test timeout', 'error');
+                            this.updateServiceStatus(testService, 'error', 'JSONP timeout');
+                            if (script.parentNode) {
+                                document.head.removeChild(script);
+                            }
+                            delete window.testCallback;
+                        }
+                    }, 5000);
+                    
+                } catch (error) {
+                    this.showNotification(`JSONP test error: ${error.message}`, 'error');
+                    this.updateServiceStatus(testService, 'error', 'JSONP error');
+                }
+            }
+
+            bindEvents() {
+                // Search functionality
+                const searchBox = document.getElementById('search-services');
+                searchBox.addEventListener('input', (e) => {
+                    this.filterServices(e.target.value);
+                });
+
+                // Layer toggle events
+                document.addEventListener('change', (e) => {
+                    if (e.target.type === 'checkbox' && e.target.dataset.service) {
+                        const serviceName = e.target.dataset.service;
+                        const serviceType = e.target.dataset.type;
+                        
+                        if (e.target.checked) {
+                            this.addLayer(serviceName, serviceType);
+                            e.target.closest('.service-item').classList.add('active');
+                        } else {
+                            this.removeLayer(serviceName);
+                            e.target.closest('.service-item').classList.remove('active');
+                        }
+                        this.updateLayerCount();
+                    }
+                });
+
+                // Opacity control events
+                document.addEventListener('input', (e) => {
+                    if (e.target.type === 'range' && e.target.dataset.layer) {
+                        const layerId = e.target.dataset.layer;
+                        const opacity = parseFloat(e.target.value);
+                        this.setLayerOpacity(layerId, opacity);
+                    }
+                });
+            }
+
+            async addLayer(serviceName, serviceType) {
+                this.updateServiceStatus(serviceName, 'testing');
+                
+                // Check if ESRI Leaflet is loaded
+                if (typeof L.esri === 'undefined') {
+                    const error = 'ESRI Leaflet library not loaded properly';
+                    console.error(error);
+                    this.updateServiceStatus(serviceName, 'error', error);
+                    this.showNotification(`✗ ${error}. Please refresh the page.`, 'error');
+                    return;
+                }
+                
+                try {
+                    let layer;
+                    const serviceUrl = `${this.baseUrl}/${serviceName}`;
+                    
+                    console.log(`Loading ${serviceType}: ${serviceUrl}`);
+
+                    switch (serviceType) {
+                        case 'VectorTileServer':
+                            // Check if Vector extension is available
+                            if (typeof L.esri.Vector === 'undefined') {
+                                // Fallback to regular tile layer with ESRI endpoint
+                                console.log('ESRI Vector not available, using tile layer fallback');
+                                layer = L.tileLayer(`${serviceUrl}/tile/{z}/{y}/{x}.pbf`, {
+                                    opacity: 0.7,
+                                    attribution: 'UNEP-WCMC'
+                                });
+                            } else {
+                                layer = L.esri.Vector.vectorTileLayer(serviceUrl, {
+                                    opacity: 0.7
+                                });
+                            }
+                            break;
+                        
+                        case 'FeatureServer':
+                            // Use ESRI Leaflet Feature Layer
+                            layer = L.esri.featureLayer({
+                                url: serviceUrl,
+                                style: function (feature) {
+                                    return {
+                                        color: '#4fc3f7',
+                                        weight: 2,
+                                        opacity: 0.7,
+                                        fillOpacity: 0.4,
+                                        fillColor: '#81c784'
+                                    };
+                                }
+                            });
+                            break;
+                        
+                        case 'MapServer':
+                            // Use ESRI Leaflet Dynamic Map Layer
+                            layer = L.esri.dynamicMapLayer({
+                                url: serviceUrl,
+                                opacity: 0.7,
+                                format: 'png32',
+                                transparent: true
+                            });
+                            break;
+                        
+                        default:
+                            throw new Error(`Unsupported service type: ${serviceType}`);
+                    }
+
+                    if (layer) {
+                        // Add error handling
+                        layer.on('error', (error) => {
+                            console.error(`Layer error for ${serviceName}:`, error);
+                            this.updateServiceStatus(serviceName, 'error', `Load error: ${error.message || 'Service unavailable'}`);
+                            this.showNotification(`✗ Error loading ${serviceName.replace(/_/g, ' ')}: ${error.message || 'Service unavailable'}`, 'error');
+                            
+                            // Remove failed layer
+                            if (this.activeLayers.has(serviceName)) {
+                                this.map.removeLayer(layer);
+                                this.activeLayers.delete(serviceName);
+                            }
+                            
+                            // Uncheck checkbox
+                            const checkbox = document.querySelector(`[data-service="${serviceName}"]`);
+                            if (checkbox) {
+                                checkbox.checked = false;
+                                checkbox.closest('.service-item').classList.remove('active');
+                            }
+                        });
+
+                        // Add success handling
+                        layer.on('load', () => {
+                            console.log(`Successfully loaded: ${serviceName}`);
+                            this.updateServiceStatus(serviceName, 'working');
+                            this.showNotification(`✓ Loaded: ${serviceName.replace(/_/g, ' ')}`, 'success');
+                        });
+
+                        // For feature layers, add popup functionality
+                        if (serviceType === 'FeatureServer') {
+                            layer.bindPopup(function (layer) {
+                                let popupContent = `<b>Feature from ${serviceName.replace(/_/g, ' ')}</b><br>`;
+                                
+                                // Add feature properties
+                                if (layer.feature && layer.feature.properties) {
+                                    const props = layer.feature.properties;
+                                    Object.keys(props).slice(0, 5).forEach(key => {
+                                        if (props[key] && key.toLowerCase() !== 'objectid') {
+                                            popupContent += `<b>${key}:</b> ${props[key]}<br>`;
+                                        }
+                                    });
+                                }
+                                
+                                return popupContent;
+                            });
+                        }
+
+                        layer.addTo(this.map);
+                        this.activeLayers.set(serviceName, layer);
+                        
+                        // Update status to testing initially, will change to working on load event
+                        this.showNotification(`Loading: ${serviceName.replace(/_/g, ' ')}...`, 'info');
+                        
+                    } else {
+                        throw new Error('Failed to create layer');
+                    }
+                } catch (error) {
+                    console.error(`Error adding layer ${serviceName}:`, error);
+                    this.updateServiceStatus(serviceName, 'error', error.message);
+                    this.showNotification(`✗ Failed to load: ${serviceName.replace(/_/g, ' ')} - ${error.message}`, 'error');
+                    
+                    // Uncheck the checkbox
+                    const checkbox = document.querySelector(`[data-service="${serviceName}"]`);
+                    if (checkbox) {
+                        checkbox.checked = false;
+                        checkbox.closest('.service-item').classList.remove('active');
+                    }
+                }
+            }
+
+            // Remove the complex fallback methods since we're using proper ESRI Leaflet
+            async tryVectorTileLayer(serviceUrl, serviceName) {
+                // This method is no longer needed with proper ESRI Leaflet
+                throw new Error('Use direct ESRI Leaflet Vector implementation');
+            }
+
+            async tryFeatureLayer(serviceUrl, serviceName) {
+                // This method is no longer needed with proper ESRI Leaflet
+                throw new Error('Use direct ESRI Leaflet FeatureLayer implementation');
+            }
+
+            async tryMapServerLayer(serviceUrl, serviceName) {
+                // This method is no longer needed with proper ESRI Leaflet
+                throw new Error('Use direct ESRI Leaflet DynamicMapLayer implementation');
+            }
+
+            async testLayerLoad(layer) {
+                // This method is no longer needed with proper ESRI Leaflet event handling
+                return Promise.resolve(layer);
+            }
+
+            removeLayer(serviceName) {
+                const layer = this.activeLayers.get(serviceName);
+                if (layer) {
+                    this.map.removeLayer(layer);
+                    this.activeLayers.delete(serviceName);
+                }
+            }
+
+            setLayerOpacity(layerId, opacity) {
+                const layer = this.activeLayers.get(layerId);
+                if (layer && layer.setOpacity) {
+                    layer.setOpacity(opacity);
+                }
+            }
+
+            filterServices(searchTerm) {
+                const items = document.querySelectorAll('.service-item');
+                const categories = document.querySelectorAll('.service-category');
+                
+                items.forEach(item => {
+                    const label = item.querySelector('label').textContent.toLowerCase();
+                    const matches = label.includes(searchTerm.toLowerCase());
+                    item.style.display = matches ? 'flex' : 'none';
+                });
+
+                // Show/hide categories based on visible items
+                categories.forEach(category => {
+                    const visibleItems = category.querySelectorAll('.service-item[style*="flex"]');
+                    const header = category.querySelector('h3');
+                    const categoryName = header.textContent.split('(')[0].trim();
+                    const totalItems = category.querySelectorAll('.service-item').length;
+                    header.textContent = `${categoryName} (${visibleItems.length}/${totalItems})`;
+                    category.style.display = visibleItems.length > 0 ? 'block' : 'none';
+                });
+            }
+
+            updateLayerCount() {
+                document.getElementById('active-count').textContent = this.activeLayers.size;
+            }
+
+            addSampleData() {
+                // Add sample coral reef locations as demonstration
+                const coralReefs = [
+                    { name: "Great Barrier Reef", lat: -16.2839, lng: 145.7781, type: "Coral Reef" },
+                    { name: "Mesoamerican Reef", lat: 16.0, lng: -88.0, type: "Coral Reef" },
+                    { name: "Red Sea Reefs", lat: 20.0, lng: 38.0, type: "Coral Reef" },
+                    { name: "Caribbean Reefs", lat: 12.0, lng: -68.0, type: "Coral Reef" }
+                ];
+
+                const marineAreas = [
+                    { name: "Papahānaumokuākea", lat: 25.0, lng: -170.0, type: "Marine Protected Area" },
+                    { name: "Great Bear Rainforest", lat: 52.0, lng: -128.0, type: "Marine Protected Area" },
+                    { name: "Ross Sea", lat: -75.0, lng: 175.0, type: "Marine Protected Area" }
+                ];
+
+                // Add coral reef markers
+                coralReefs.forEach(reef => {
+                    L.circleMarker([reef.lat, reef.lng], {
+                        radius: 8,
+                        fillColor: '#ff6b6b',
+                        color: '#ffffff',
+                        weight: 2,
+                        opacity: 0.8,
+                        fillOpacity: 0.6
+                    }).addTo(this.map).bindPopup(`
+                        <b>${reef.name}</b><br>
+                        Type: ${reef.type}<br>
+                        <em>Sample data - actual layers require CORS proxy</em>
+                    `);
+                });
+
+                // Add marine protected area markers
+                marineAreas.forEach(area => {
+                    L.circleMarker([area.lat, area.lng], {
+                        radius: 10,
+                        fillColor: '#4caf50',
+                        color: '#ffffff',
+                        weight: 2,
+                        opacity: 0.8,
+                        fillOpacity: 0.4
+                    }).addTo(this.map).bindPopup(`
+                        <b>${area.name}</b><br>
+                        Type: ${area.type}<br>
+                        <em>Sample data - actual layers require CORS proxy</em>
+                    `);
+                });
+
+                this.showNotification('Sample ocean habitat data loaded for demonstration', 'info');
+            }
+
+            showNotification(message, type = 'info') {
+                const notification = document.createElement('div');
+                notification.className = `notification ${type}`;
+                notification.textContent = message;
+                document.body.appendChild(notification);
+
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.parentNode.removeChild(notification);
+                    }
+                }, 4000);
+            }
+
+            hideLoading() {
+                const loading = document.getElementById('loading');
+                if (loading) {
+                    loading.style.display = 'none';
+                }
+            }
+        }
+
+        // Initialize the Ocean Viewer when the page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            window.oceanViewer = new OceanViewer();
+        });
+    </script>
+</body>
+</html>, 'working');
+                    } else {
+                        this.showNotification('WMS access failed', 'error');
+                        this.updateServiceStatus(testService

@@ -1,0 +1,1493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Copernicus Marine Data Viewer</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0c4a6e 0%, #082f49 100%);
+            color: white;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        .header {
+            background: rgba(0, 0, 0, 0.8);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: between;
+            align-items: center;
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .header h1 {
+            font-size: 1.5rem;
+            background: linear-gradient(45deg, #3b82f6, #06b6d4);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .main-container {
+            display: flex;
+            height: calc(100vh - 80px);
+        }
+        
+        .sidebar {
+            width: 350px;
+            background: rgba(0, 0, 0, 0.9);
+            padding: 1.5rem;
+            overflow-y: auto;
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+        }
+        
+        .map-container {
+            flex: 1;
+            position: relative;
+        }
+        
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .layer-group {
+            margin-bottom: 2rem;
+        }
+        
+        .layer-group h3 {
+            color: #3b82f6;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid rgba(59, 130, 246, 0.3);
+            font-size: 1.1rem;
+        }
+        
+        .layer-item {
+            margin-bottom: 0.75rem;
+            padding: 0.75rem;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+        }
+        
+        .layer-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(59, 130, 246, 0.5);
+            transform: translateY(-1px);
+        }
+        
+        .layer-item label {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        
+        .layer-item input[type="checkbox"] {
+            margin-right: 0.75rem;
+            transform: scale(1.2);
+            accent-color: #3b82f6;
+        }
+        
+        .layer-description {
+            font-size: 0.85rem;
+            color: #94a3b8;
+            margin-top: 0.5rem;
+            line-height: 1.4;
+        }
+        
+        .controls {
+            background: rgba(0, 0, 0, 0.7);
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .controls h4 {
+            color: #06b6d4;
+            margin-bottom: 0.75rem;
+        }
+        
+        .control-group {
+            margin-bottom: 1rem;
+        }
+        
+        .control-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+            color: #e2e8f0;
+        }
+        
+        .control-group input, .control-group select {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+            background: rgba(0, 0, 0, 0.5);
+            color: white;
+            font-size: 0.9rem;
+        }
+        
+        .control-group input:focus, .control-group select:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+        }
+        
+        .control-group button {
+            width: 100%;
+            padding: 0.5rem;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: background 0.3s ease;
+        }
+        
+        .control-group button:hover {
+            background: #2563eb;
+        }
+        
+        .info-panel {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 1rem;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            min-width: 250px;
+            max-width: 300px;
+            z-index: 1000;
+        }
+        
+        .info-panel h4 {
+            color: #06b6d4;
+            margin-bottom: 0.5rem;
+        }
+        
+        .info-content {
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+        
+        .coordinate-display {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 0.5rem;
+            border-radius: 4px;
+            margin-top: 0.5rem;
+            font-family: monospace;
+            font-size: 0.85rem;
+        }
+        
+        .legend {
+            position: absolute;
+            bottom: 1rem;
+            left: 1rem;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 1rem;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+            min-width: 200px;
+            max-width: 300px;
+        }
+        
+        .legend h5 {
+            color: #06b6d4;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+        }
+        
+        .legend-item {
+            margin-bottom: 0.75rem;
+            padding: 0.5rem;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .legend-title {
+            font-weight: 500;
+            color: #e2e8f0;
+            margin-bottom: 0.25rem;
+            font-size: 0.85rem;
+        }
+        
+        .legend-range {
+            font-size: 0.75rem;
+            color: #94a3b8;
+            margin-bottom: 0.25rem;
+        }
+        
+        .color-bar {
+            height: 8px;
+            border-radius: 4px;
+            background: linear-gradient(to right, #440154, #31688e, #35b779, #fde725);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .scrollbar::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        .scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(59, 130, 246, 0.5);
+            border-radius: 3px;
+        }
+        
+        .scrollbar::-webkit-scrollbar-thumb:hover {
+            background: rgba(59, 130, 246, 0.7);
+        }
+        
+        .click-indicator {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #06b6d4;
+            border-radius: 50%;
+            background: rgba(6, 182, 212, 0.2);
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 1001;
+            animation: pulse 1s ease-in-out;
+        }
+        
+        @keyframes pulse {
+            0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+            50% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(1); opacity: 0.8; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🌊 Copernicus Marine Data Viewer</h1>
+    </div>
+    
+    <div class="main-container">
+        <div class="sidebar scrollbar">
+            <div class="controls">
+                <h4>🎛️ Layer Controls</h4>
+                <div class="control-group">
+                    <label for="date-input">Date:</label>
+                    <input type="date" id="date-input" value="2024-08-15">
+                </div>
+                <div class="control-group">
+                    <label for="depth-input">Depth (m):</label>
+                    <select id="depth-input">
+                        <option value="0">Surface (0m)</option>
+                        <option value="-1.5">1.5m</option>
+                        <option value="-5">5m</option>
+                        <option value="-10">10m</option>
+                        <option value="-15.81">15.81m</option>
+                        <option value="-25">25m</option>
+                        <option value="-50">50m</option>
+                        <option value="-100">100m</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label for="opacity-input">Layer Opacity:</label>
+                    <input type="range" id="opacity-input" min="0" max="1" step="0.1" value="0.8">
+                </div>
+                <div class="control-group">
+                    <button id="test-layer-btn">🧪 Test Layer</button>
+                </div>
+                <div class="control-group">
+                    <div id="metadata-status" style="font-size: 0.8rem; color: #94a3b8; text-align: center; padding: 0.5rem;">
+                        <span id="status-text">Loading metadata...</span>
+                        <div id="status-indicator" style="margin-top: 0.25rem; height: 2px; background: rgba(59, 130, 246, 0.3); border-radius: 1px;">
+                            <div style="height: 100%; background: #3b82f6; border-radius: 1px; width: 0%; transition: width 0.3s ease;" id="status-bar"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="layer-group">
+                <h3>🌡️ Physics (PHY_001_024)</h3>
+                <div class="layer-item">
+                    <label>
+                        <input type="checkbox" data-layer="temperature">
+                        Sea Water Temperature
+                    </label>
+                    <div class="layer-description">Temperature of sea water (°C)</div>
+                </div>
+                <div class="layer-item">
+                    <label>
+                        <input type="checkbox" data-layer="salinity">
+                        Sea Water Salinity
+                    </label>
+                    <div class="layer-description">Practical salinity of sea water (PSU)</div>
+                </div>
+            </div>
+            
+            <div class="layer-group">
+                <h3>🌿 Biogeochemistry (BGC_001_028)</h3>
+                <div class="layer-item">
+                    <label>
+                        <input type="checkbox" data-layer="chlorophyll">
+                        Chlorophyll-a
+                    </label>
+                    <div class="layer-description">Mass concentration of chlorophyll a (mg m⁻³)</div>
+                </div>
+                <div class="layer-item">
+                    <label>
+                        <input type="checkbox" data-layer="oxygen">
+                        Dissolved Oxygen
+                    </label>
+                    <div class="layer-description">Dissolved molecular oxygen (mmol m⁻³)</div>
+                </div>
+                <div class="layer-item">
+                    <label>
+                        <input type="checkbox" data-layer="nitrate">
+                        Nitrate
+                    </label>
+                    <div class="layer-description">Mole concentration of nitrate (mmol m⁻³)</div>
+                </div>
+                <div class="layer-item">
+                    <label>
+                        <input type="checkbox" data-layer="phosphate">
+                        Phosphate
+                    </label>
+                    <div class="layer-description">Mole concentration of phosphate (mmol m⁻³)</div>
+                </div>
+                <div class="layer-item">
+                    <label>
+                        <input type="checkbox" data-layer="silicate">
+                        Silicate
+                    </label>
+                    <div class="layer-description">Mole concentration of silicate (mmol m⁻³)</div>
+                </div>
+                <div class="layer-item">
+                    <label>
+                        <input type="checkbox" data-layer="iron">
+                        Iron
+                    </label>
+                    <div class="layer-description">Dissolved iron concentration (mmol m⁻³)</div>
+                </div>
+                <div class="layer-item">
+                    <label>
+                        <input type="checkbox" data-layer="ph">
+                        pH
+                    </label>
+                    <div class="layer-description">Sea water pH on total scale</div>
+                </div>
+                <div class="layer-item">
+                    <label>
+                        <input type="checkbox" data-layer="co2">
+                        Surface CO₂
+                    </label>
+                    <div class="layer-description">Surface partial pressure of CO₂ (Pa)</div>
+                </div>
+                <div class="layer-item">
+                    <label>
+                        <input type="checkbox" data-layer="phytoplankton">
+                        Phytoplankton
+                    </label>
+                    <div class="layer-description">Phytoplankton carbon biomass (mmol m⁻³)</div>
+                </div>
+                <div class="layer-item">
+                    <label>
+                        <input type="checkbox" data-layer="primary_production">
+                        Primary Production
+                    </label>
+                    <div class="layer-description">Net primary production (mg m⁻³ day⁻¹)</div>
+                </div>
+            </div>
+            
+            <div class="layer-group">
+                <h3>🌊 Waves (WAV_001_027)</h3>
+                <div class="layer-item">
+                    <label>
+                        <input type="checkbox" data-layer="wave_height">
+                        Significant Wave Height
+                    </label>
+                    <div class="layer-description">Height of significant waves (m) - Placeholder</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="map-container">
+            <div id="map"></div>
+            
+            <div class="info-panel">
+                <h4>📍 Layer Information</h4>
+                <div class="info-content">
+                    <p>Click on the map to get data values at that location.</p>
+                    <div class="coordinate-display" id="coordinates">
+                        Lat: --<br>
+                        Lon: --
+                    </div>
+                    <div id="data-values" style="margin-top: 0.5rem;"></div>
+                </div>
+            </div>
+            
+            <div class="legend" id="legend" style="display: none;">
+                <h5>🎨 Active Layers</h5>
+                <div id="legend-content"></div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        class CopernicusMarineViewer {
+            constructor() {
+                this.map = null;
+                this.activeLayers = new Map();
+                this.currentDate = '2024-08-15';
+                this.currentDepth = '0';
+                this.currentOpacity = 0.8;
+                this.clickMarker = null;
+                this.datasetMetadata = new Map();
+                this.isLoading = false;
+                
+                // API endpoints for dataset metadata
+                this.apiEndpoints = {
+                    'BGC_001_028': 'https://data-be-prd.marine.copernicus.eu/api/dataset/GLOBAL_ANALYSISFORECAST_BGC_001_028?variant=detailed-v5&lang=en',
+                    'PHY_001_024': 'https://data-be-prd.marine.copernicus.eu/api/dataset/GLOBAL_ANALYSISFORECAST_PHY_001_024?variant=detailed-v5&lang=en',
+                    'WAV_001_027': 'https://data-be-prd.marine.copernicus.eu/api/dataset/GLOBAL_ANALYSISFORECAST_WAV_001_027?variant=detailed-v5&lang=en'
+                };
+                
+                // Fallback layer configs (used if API fails)
+                this.fallbackLayerConfigs = {
+                this.fallbackLayerConfigs = {
+                    // Biogeochemistry layers - fallback configs
+                    chlorophyll: {
+                        product: 'GLOBAL_ANALYSISFORECAST_BGC_001_028',
+                        dataset: 'cmems_mod_glo_bgc-pft_anfc_0.25deg_P1D-m_202311',
+                        variable: 'chl',
+                        colormap: 'algae',
+                        range: '0.003/0.775',
+                        title: 'Chlorophyll-a (mg m⁻³)',
+                        colorGradient: 'linear-gradient(to right, #0000FF, #00FFFF, #00FF00, #FFFF00, #FF0000)'
+                    },
+                    oxygen: {
+                        product: 'GLOBAL_ANALYSISFORECAST_BGC_001_028',
+                        dataset: 'cmems_mod_glo_bgc-bio_anfc_0.25deg_P1D-m_202311',
+                        variable: 'o2',
+                        colormap: 'matter',
+                        range: '40/378',
+                        title: 'Dissolved Oxygen (mmol m⁻³)',
+                        colorGradient: 'linear-gradient(to right, #440154, #31688e, #35b779, #fde725)'
+                    },
+                    temperature: {
+                        product: 'GLOBAL_ANALYSISFORECAST_PHY_001_024',
+                        dataset: 'cmems_mod_glo_phy-thetao_anfc_0.083deg_PT6H-i_202406',
+                        variable: 'thetao',
+                        colormap: 'thermal',
+                        range: '-2/35',
+                        title: 'Temperature (°C)',
+                        colorGradient: 'linear-gradient(to right, #000033, #0000FF, #00FFFF, #FFFF00, #FF0000, #800000)'
+                    },
+                    salinity: {
+                        product: 'GLOBAL_ANALYSISFORECAST_PHY_001_024',
+                        dataset: 'cmems_mod_glo_phy-so_anfc_0.083deg_PT6H-i_202406',
+                        variable: 'so',
+                        colormap: 'haline',
+                        range: '30/40',
+                        title: 'Salinity (PSU)',
+                        colorGradient: 'linear-gradient(to right, #004080, #0080FF, #40BFFF, #80DFFF, #C0EFFF, #FFFFFF)'
+                    }
+                };
+                
+                // Default colormaps for different variable types
+                this.variableColormaps = {
+                    'chl': { colormap: 'algae', gradient: 'linear-gradient(to right, #0000FF, #00FFFF, #00FF00, #FFFF00, #FF0000)' },
+                    'o2': { colormap: 'matter', gradient: 'linear-gradient(to right, #440154, #31688e, #35b779, #fde725)' },
+                    'no3': { colormap: 'matter', gradient: 'linear-gradient(to right, #440154, #31688e, #35b779, #fde725)' },
+                    'po4': { colormap: 'dense', gradient: 'linear-gradient(to right, #1f1f2e, #1f2e4a, #0f4c75, #0f5e8a, #0a7fb4)' },
+                    'si': { colormap: 'dense', gradient: 'linear-gradient(to right, #1f1f2e, #1f2e4a, #0f4c75, #0f5e8a, #0a7fb4)' },
+                    'fe': { colormap: 'dense', gradient: 'linear-gradient(to right, #1f1f2e, #1f2e4a, #0f4c75, #0f5e8a, #0a7fb4)' },
+                    'ph': { colormap: 'viridis', gradient: 'linear-gradient(to right, #440154, #404387, #2a788e, #22a884, #7ad151, #fde725)' },
+                    'spco2': { colormap: 'matter', gradient: 'linear-gradient(to right, #440154, #31688e, #35b779, #fde725)' },
+                    'phyc': { colormap: 'matter', gradient: 'linear-gradient(to right, #440154, #31688e, #35b779, #fde725)' },
+                    'nppv': { colormap: 'matter', gradient: 'linear-gradient(to right, #440154, #31688e, #35b779, #fde725)' },
+                    'thetao': { colormap: 'thermal', gradient: 'linear-gradient(to right, #000033, #0000FF, #00FFFF, #FFFF00, #FF0000, #800000)' },
+                    'so': { colormap: 'haline', gradient: 'linear-gradient(to right, #004080, #0080FF, #40BFFF, #80DFFF, #C0EFFF, #FFFFFF)' },
+                    'VHM0': { colormap: 'matter', gradient: 'linear-gradient(to right, #440154, #31688e, #35b779, #fde725)' }
+                };
+                
+                this.layerConfigs = new Map();
+                
+                this.init();
+            }
+            
+            async init() {
+                this.showNotification('Loading dataset metadata...', 3000);
+                this.initMap();
+                this.initControls();
+                this.initEventListeners();
+                
+                // Load metadata from APIs
+                await this.loadDatasetMetadata();
+                this.populateLayerConfigs();
+                this.updateLayerUI();
+            }
+            
+            async loadDatasetMetadata() {
+                this.isLoading = true;
+                this.updateLoadingStatus('Loading dataset metadata...', 10);
+                
+                const endpoints = Object.entries(this.apiEndpoints);
+                let loadedCount = 0;
+                
+                for (const [datasetKey, apiUrl] of endpoints) {
+                    try {
+                        console.log(`Fetching metadata for ${datasetKey} from:`, apiUrl);
+                        this.updateLoadingStatus(`Loading ${datasetKey}...`, 10 + (loadedCount / endpoints.length) * 80);
+                        
+                        const response = await fetch(apiUrl);
+                        if (!response.ok) {
+                            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                        }
+                        
+                        const metadata = await response.json();
+                        this.datasetMetadata.set(datasetKey, metadata);
+                        
+                        console.log(`Successfully loaded metadata for ${datasetKey}:`, metadata);
+                        
+                    } catch (error) {
+                        console.warn(`Failed to load metadata for ${datasetKey}:`, error);
+                        this.showNotification(`Failed to load ${datasetKey} metadata - using fallback`, 3000);
+                    }
+                    
+                    loadedCount++;
+                    this.updateLoadingStatus(`Loaded ${loadedCount}/${endpoints.length} datasets`, 10 + (loadedCount / endpoints.length) * 80);
+                }
+                
+                this.updateLoadingStatus('Processing metadata...', 95);
+                this.isLoading = false;
+                this.updateLoadingStatus('Ready!', 100);
+                
+                setTimeout(() => {
+                    const statusElement = document.getElementById('metadata-status');
+                    if (statusElement) {
+                        statusElement.style.display = 'none';
+                    }
+                }, 2000);
+            }
+            
+            updateLoadingStatus(text, percentage) {
+                const statusText = document.getElementById('status-text');
+                const statusBar = document.getElementById('status-bar');
+                
+                if (statusText) statusText.textContent = text;
+                if (statusBar) statusBar.style.width = percentage + '%';
+            }
+            
+            populateLayerConfigs() {
+                // Process BGC dataset
+                const bgcMetadata = this.datasetMetadata.get('BGC_001_028');
+                if (bgcMetadata && bgcMetadata.products) {
+                    this.processBGCMetadata(bgcMetadata);
+                }
+                
+                // Process PHY dataset
+                const phyMetadata = this.datasetMetadata.get('PHY_001_024');
+                if (phyMetadata && phyMetadata.products) {
+                    this.processPHYMetadata(phyMetadata);
+                }
+                
+                // Process WAV dataset if available
+                const wavMetadata = this.datasetMetadata.get('WAV_001_027');
+                if (wavMetadata && wavMetadata.products) {
+                    this.processWAVMetadata(wavMetadata);
+                }
+                
+                // Fill in any missing configs with fallbacks
+                for (const [layerId, config] of Object.entries(this.fallbackLayerConfigs)) {
+                    if (!this.layerConfigs.has(layerId)) {
+                        this.layerConfigs.set(layerId, config);
+                    }
+                }
+            }
+            
+            processBGCMetadata(metadata) {
+                if (!metadata.products || !Array.isArray(metadata.products)) return;
+                
+                for (const product of metadata.products) {
+                    if (!product.datasets || !Array.isArray(product.datasets)) continue;
+                    
+                    for (const dataset of product.datasets) {
+                        if (!dataset.versions || !Array.isArray(dataset.versions)) continue;
+                        
+                        // Get the latest version
+                        const latestVersion = dataset.versions[dataset.versions.length - 1];
+                        if (!latestVersion.parts || !Array.isArray(latestVersion.parts)) continue;
+                        
+                        for (const part of latestVersion.parts) {
+                            if (!part.services || !part.services.wmts || !part.services.wmts.layers) continue;
+                            
+                            for (const layer of part.services.wmts.layers) {
+                                const layerConfig = this.createLayerConfigFromMetadata(
+                                    metadata.id,
+                                    dataset.datasetId,
+                                    layer,
+                                    'biogeochemistry'
+                                );
+                                
+                                if (layerConfig) {
+                                    const layerId = this.getLayerIdFromVariable(layer.layerId);
+                                    if (layerId) {
+                                        this.layerConfigs.set(layerId, layerConfig);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            processPHYMetadata(metadata) {
+                if (!metadata.products || !Array.isArray(metadata.products)) return;
+                
+                for (const product of metadata.products) {
+                    if (!product.datasets || !Array.isArray(product.datasets)) continue;
+                    
+                    for (const dataset of product.datasets) {
+                        if (!dataset.versions || !Array.isArray(dataset.versions)) continue;
+                        
+                        // Get the latest version
+                        const latestVersion = dataset.versions[dataset.versions.length - 1];
+                        if (!latestVersion.parts || !Array.isArray(latestVersion.parts)) continue;
+                        
+                        for (const part of latestVersion.parts) {
+                            if (!part.services || !part.services.wmts || !part.services.wmts.layers) continue;
+                            
+                            for (const layer of part.services.wmts.layers) {
+                                const layerConfig = this.createLayerConfigFromMetadata(
+                                    metadata.id,
+                                    dataset.datasetId,
+                                    layer,
+                                    'physics'
+                                );
+                                
+                                if (layerConfig) {
+                                    const layerId = this.getLayerIdFromVariable(layer.layerId);
+                                    if (layerId) {
+                                        this.layerConfigs.set(layerId, layerConfig);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            processWAVMetadata(metadata) {
+                // Similar to BGC/PHY but for wave data
+                if (!metadata.products || !Array.isArray(metadata.products)) return;
+                
+                for (const product of metadata.products) {
+                    if (!product.datasets || !Array.isArray(product.datasets)) continue;
+                    
+                    for (const dataset of product.datasets) {
+                        if (!dataset.versions || !Array.isArray(dataset.versions)) continue;
+                        
+                        const latestVersion = dataset.versions[dataset.versions.length - 1];
+                        if (!latestVersion.parts || !Array.isArray(latestVersion.parts)) continue;
+                        
+                        for (const part of latestVersion.parts) {
+                            if (!part.services || !part.services.wmts || !part.services.wmts.layers) continue;
+                            
+                            for (const layer of part.services.wmts.layers) {
+                                const layerConfig = this.createLayerConfigFromMetadata(
+                                    metadata.id,
+                                    dataset.datasetId,
+                                    layer,
+                                    'waves'
+                                );
+                                
+                                if (layerConfig) {
+                                    const layerId = this.getLayerIdFromVariable(layer.layerId);
+                                    if (layerId) {
+                                        this.layerConfigs.set(layerId, layerConfig);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            createLayerConfigFromMetadata(productId, datasetId, layer, category) {
+                const variable = layer.layerId;
+                const colormapInfo = this.variableColormaps[variable] || { 
+                    colormap: 'matter', 
+                    gradient: 'linear-gradient(to right, #440154, #31688e, #35b779, #fde725)' 
+                };
+                
+                // Determine if surface only based on variable name
+                const surfaceOnly = ['spco2', 'VHM0'].includes(variable);
+                
+                // Get range from layer metadata if available
+                let range = '0/1';
+                if (layer.defaultStyle && layer.defaultStyle.range) {
+                    range = `${layer.defaultStyle.range.min}/${layer.defaultStyle.range.max}`;
+                }
+                
+                // Create human-readable title
+                const title = this.createTitleFromVariable(variable);
+                
+                return {
+                    product: productId,
+                    dataset: datasetId,
+                    variable: variable,
+                    colormap: colormapInfo.colormap,
+                    range: range,
+                    title: title,
+                    colorGradient: colormapInfo.gradient,
+                    surfaceOnly: surfaceOnly,
+                    category: category,
+                    logScale: this.shouldUseLogScale(variable)
+                };
+            }
+            
+            getLayerIdFromVariable(variableName) {
+                const variableMapping = {
+                    'chl': 'chlorophyll',
+                    'o2': 'oxygen',
+                    'no3': 'nitrate',
+                    'po4': 'phosphate',
+                    'si': 'silicate',
+                    'fe': 'iron',
+                    'ph': 'ph',
+                    'spco2': 'co2',
+                    'phyc': 'phytoplankton',
+                    'nppv': 'primary_production',
+                    'thetao': 'temperature',
+                    'so': 'salinity',
+                    'VHM0': 'wave_height'
+                };
+                
+                return variableMapping[variableName] || null;
+            }
+            
+            createTitleFromVariable(variable) {
+                const titleMapping = {
+                    'chl': 'Chlorophyll-a (mg m⁻³)',
+                    'o2': 'Dissolved Oxygen (mmol m⁻³)',
+                    'no3': 'Nitrate (mmol m⁻³)',
+                    'po4': 'Phosphate (mmol m⁻³)',
+                    'si': 'Silicate (mmol m⁻³)',
+                    'fe': 'Iron (mmol m⁻³)',
+                    'ph': 'pH',
+                    'spco2': 'Surface CO₂ (Pa)',
+                    'phyc': 'Phytoplankton (mmol m⁻³)',
+                    'nppv': 'Primary Production (mg m⁻³ day⁻¹)',
+                    'thetao': 'Temperature (°C)',
+                    'so': 'Salinity (PSU)',
+                    'VHM0': 'Wave Height (m)'
+                };
+                
+                return titleMapping[variable] || variable.toUpperCase();
+            }
+            
+            shouldUseLogScale(variable) {
+                return ['no3', 'po4', 'si', 'fe'].includes(variable);
+            }
+            
+            updateLayerUI() {
+                // Update the sidebar with actual available layers
+                console.log('Available layer configurations:', this.layerConfigs);
+                
+                // Enable checkboxes for available layers
+                document.querySelectorAll('input[type="checkbox"][data-layer]').forEach(checkbox => {
+                    const layerId = checkbox.dataset.layer;
+                    const isAvailable = this.layerConfigs.has(layerId);
+                    
+                    checkbox.disabled = !isAvailable;
+                    const layerItem = checkbox.closest('.layer-item');
+                    
+                    if (isAvailable) {
+                        layerItem.style.opacity = '1';
+                        const config = this.layerConfigs.get(layerId);
+                        
+                        // Update description with actual metadata
+                        const description = layerItem.querySelector('.layer-description');
+                        if (description && config.title) {
+                            description.textContent = config.title;
+                        }
+                    } else {
+                        layerItem.style.opacity = '0.5';
+                        layerItem.title = 'Layer not available in current dataset';
+                    }
+                });
+            }
+                        product: 'GLOBAL_ANALYSISFORECAST_BGC_001_028',
+                        dataset: 'cmems_mod_glo_bgc-pft_anfc_0.25deg_P1D-m_202311',
+                        variable: 'chl',
+                        colormap: 'algae',
+                        range: '0.003/0.775',
+                        title: 'Chlorophyll-a (mg m⁻³)',
+                        colorGradient: 'linear-gradient(to right, #0000FF, #00FFFF, #00FF00, #FFFF00, #FF0000)'
+                    },
+                    oxygen: {
+                        product: 'GLOBAL_ANALYSISFORECAST_BGC_001_028',
+                        dataset: 'cmems_mod_glo_bgc-bio_anfc_0.25deg_P1D-m_202311',
+                        variable: 'o2',
+                        colormap: 'matter',
+                        range: '40/378',
+                        title: 'Dissolved Oxygen (mmol m⁻³)',
+                        colorGradient: 'linear-gradient(to right, #440154, #31688e, #35b779, #fde725)'
+                    },
+                    nitrate: {
+                        product: 'GLOBAL_ANALYSISFORECAST_BGC_001_028',
+                        dataset: 'cmems_mod_glo_bgc-nut_anfc_0.25deg_P1D-m_202311',
+                        variable: 'no3',
+                        colormap: 'matter',
+                        range: '0.0005/41.5',
+                        logScale: true,
+                        title: 'Nitrate (mmol m⁻³)',
+                        colorGradient: 'linear-gradient(to right, #440154, #31688e, #35b779, #fde725)'
+                    },
+                    ph: {
+                        product: 'GLOBAL_ANALYSISFORECAST_BGC_001_028',
+                        dataset: 'cmems_mod_glo_bgc-car_anfc_0.25deg_P1D-m_202311',
+                        variable: 'ph',
+                        colormap: 'viridis',
+                        range: '7.6/8.1',
+                        title: 'pH',
+                        colorGradient: 'linear-gradient(to right, #440154, #404387, #2a788e, #22a884, #7ad151, #fde725)'
+                    },
+                    co2: {
+                        product: 'GLOBAL_ANALYSISFORECAST_BGC_001_028',
+                        dataset: 'cmems_mod_glo_bgc-co2_anfc_0.25deg_P1D-m_202311',
+                        variable: 'spco2',
+                        colormap: 'matter',
+                        range: '28/50',
+                        title: 'Surface CO₂ (Pa)',
+                        surfaceOnly: true,
+                        colorGradient: 'linear-gradient(to right, #440154, #31688e, #35b779, #fde725)'
+                    },
+                    phosphate: {
+                        product: 'GLOBAL_ANALYSISFORECAST_BGC_001_028',
+                        dataset: 'cmems_mod_glo_bgc-nut_anfc_0.25deg_P1D-m_202311',
+                        variable: 'po4',
+                        colormap: 'dense',
+                        range: '0.03/3.0',
+                        logScale: true,
+                        title: 'Phosphate (mmol m⁻³)',
+                        colorGradient: 'linear-gradient(to right, #1f1f2e, #1f2e4a, #0f4c75, #0f5e8a, #0a7fb4)'
+                    },
+                    silicate: {
+                        product: 'GLOBAL_ANALYSISFORECAST_BGC_001_028',
+                        dataset: 'cmems_mod_glo_bgc-nut_anfc_0.25deg_P1D-m_202311',
+                        variable: 'si',
+                        colormap: 'dense',
+                        range: '1.1/150',
+                        logScale: true,
+                        title: 'Silicate (mmol m⁻³)',
+                        colorGradient: 'linear-gradient(to right, #1f1f2e, #1f2e4a, #0f4c75, #0f5e8a, #0a7fb4)'
+                    },
+                    iron: {
+                        product: 'GLOBAL_ANALYSISFORECAST_BGC_001_028',
+                        dataset: 'cmems_mod_glo_bgc-nut_anfc_0.25deg_P1D-m_202311',
+                        variable: 'fe',
+                        colormap: 'dense',
+                        range: '0.00001/0.002',
+                        logScale: true,
+                        title: 'Iron (mmol m⁻³)',
+                        colorGradient: 'linear-gradient(to right, #1f1f2e, #1f2e4a, #0f4c75, #0f5e8a, #0a7fb4)'
+                    },
+                    phytoplankton: {
+                        product: 'GLOBAL_ANALYSISFORECAST_BGC_001_028',
+                        dataset: 'cmems_mod_glo_bgc-pft_anfc_0.25deg_P1D-m_202311',
+                        variable: 'phyc',
+                        colormap: 'matter',
+                        range: '0.013/3.7',
+                        title: 'Phytoplankton (mmol m⁻³)',
+                        colorGradient: 'linear-gradient(to right, #440154, #31688e, #35b779, #fde725)'
+                    },
+                    primary_production: {
+                        product: 'GLOBAL_ANALYSISFORECAST_BGC_001_028',
+                        dataset: 'cmems_mod_glo_bgc-bio_anfc_0.25deg_P1D-m_202311',
+                        variable: 'nppv',
+                        colormap: 'matter',
+                        range: '0/19',
+                        title: 'Primary Production (mg m⁻³ day⁻¹)',
+                        colorGradient: 'linear-gradient(to right, #440154, #31688e, #35b779, #fde725)'
+                    },
+                    
+                    // Physics layers - using example dataset
+                    temperature: {
+                        product: 'GLOBAL_ANALYSISFORECAST_PHY_001_024',
+                        dataset: 'cmems_mod_glo_phy-thetao_anfc_0.083deg_PT6H-i_202406',
+                        variable: 'thetao',
+                        colormap: 'thermal',
+                        range: '-2/35',
+                        title: 'Temperature (°C)',
+                        colorGradient: 'linear-gradient(to right, #000033, #0000FF, #00FFFF, #FFFF00, #FF0000, #800000)'
+                    },
+                    salinity: {
+                        product: 'GLOBAL_ANALYSISFORECAST_PHY_001_024',
+                        dataset: 'cmems_mod_glo_phy-so_anfc_0.083deg_PT6H-i_202406',
+                        variable: 'so',
+                        colormap: 'haline',
+                        range: '30/40',
+                        title: 'Salinity (PSU)',
+                        colorGradient: 'linear-gradient(to right, #004080, #0080FF, #40BFFF, #80DFFF, #C0EFFF, #FFFFFF)'
+                    },
+                    
+                    // Wave layers - placeholder
+                    wave_height: {
+                        product: 'GLOBAL_ANALYSISFORECAST_WAV_001_027',
+                        dataset: 'example_wave_dataset',
+                        variable: 'VHM0',
+                        colormap: 'matter',
+                        range: '0/10',
+                        title: 'Wave Height (m)',
+                        surfaceOnly: true,
+                        colorGradient: 'linear-gradient(to right, #440154, #31688e, #35b779, #fde725)'
+                    }
+                };
+            
+            initMap() {
+                this.initControls();
+                this.initEventListeners();
+            }
+            
+            initMap() {
+                this.map = L.map('map', {
+                    center: [45, 0],
+                    zoom: 3,
+                    minZoom: 2,
+                    maxZoom: 10
+                });
+                
+                L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+                    subdomains: 'abcd',
+                    maxZoom: 20
+                }).addTo(this.map);
+                
+                this.map.on('click', (e) => {
+                    this.handleMapClick(e);
+                });
+            }
+            
+            initControls() {
+                const dateInput = document.getElementById('date-input');
+                const depthInput = document.getElementById('depth-input');
+                const opacityInput = document.getElementById('opacity-input');
+                
+                dateInput.value = this.currentDate;
+                depthInput.value = this.currentDepth;
+                opacityInput.value = this.currentOpacity;
+                
+                dateInput.addEventListener('change', (e) => {
+                    this.currentDate = e.target.value;
+                    this.updateAllLayers();
+                });
+                
+                depthInput.addEventListener('change', (e) => {
+                    this.currentDepth = e.target.value;
+                    this.updateAllLayers();
+                });
+                
+                opacityInput.addEventListener('change', (e) => {
+                    this.currentOpacity = parseFloat(e.target.value);
+                    this.updateLayerOpacity();
+                });
+            }
+            
+            initEventListeners() {
+                const checkboxes = document.querySelectorAll('input[type="checkbox"][data-layer]');
+                checkboxes.forEach(checkbox => {
+                    checkbox.addEventListener('change', (e) => {
+                        const layerId = e.target.dataset.layer;
+                        if (e.target.checked) {
+                            this.addLayer(layerId);
+                        } else {
+                            this.removeLayer(layerId);
+                        }
+                        this.updateLegend();
+                    });
+                });
+                
+                const testButton = document.getElementById('test-layer-btn');
+                if (testButton) {
+                    testButton.addEventListener('click', () => {
+                        this.addTestLayer();
+                    });
+                }
+            }
+            
+            handleMapClick(e) {
+                this.showClickIndicator(e);
+                this.updateCoordinates(e.latlng);
+                this.queryLayerData(e.latlng);
+            }
+            
+            showClickIndicator(e) {
+                // Remove existing click indicator
+                if (this.clickMarker) {
+                    this.map.removeLayer(this.clickMarker);
+                }
+                
+                // Create a visual indicator at click location
+                const point = this.map.latLngToContainerPoint(e.latlng);
+                const indicator = document.createElement('div');
+                indicator.className = 'click-indicator';
+                indicator.style.left = point.x + 'px';
+                indicator.style.top = point.y + 'px';
+                
+                document.querySelector('.map-container').appendChild(indicator);
+                
+                // Remove indicator after animation
+                setTimeout(() => {
+                    if (indicator.parentNode) {
+                        indicator.parentNode.removeChild(indicator);
+                    }
+                }, 1000);
+                
+                // Also add a temporary marker
+                this.clickMarker = L.circleMarker(e.latlng, {
+                    radius: 8,
+                    fillColor: '#06b6d4',
+                    color: '#ffffff',
+                    weight: 2,
+                    opacity: 1,
+                    fillOpacity: 0.6
+                }).addTo(this.map);
+                
+                // Remove marker after a few seconds
+                setTimeout(() => {
+                    if (this.clickMarker) {
+                        this.map.removeLayer(this.clickMarker);
+                        this.clickMarker = null;
+                    }
+                }, 3000);
+            }
+            
+            addLayer(layerId) {
+                const config = this.layerConfigs.get(layerId);
+                if (!config) {
+                    console.error('Layer config not found for:', layerId);
+                    this.showNotification('Layer configuration not available: ' + layerId, 3000);
+                    return;
+                }
+                
+                const baseUrl = 'https://wmts.marine.copernicus.eu/teroWmts';
+                const layerName = config.product + '/' + config.dataset + '/' + config.variable;
+                
+                const styleParams = this.buildStyleParams(config);
+                const timeParam = 'time=' + this.currentDate + 'T00:00:00.000000000Z';
+                
+                const elevationParam = (!config.surfaceOnly && this.currentDepth !== '0') ? 
+                    'elevation=' + this.currentDepth : '';
+                
+                let url = baseUrl + '?service=WMTS&request=GetTile&version=1.0.0&layer=' + layerName + '&tilematrixset=EPSG:3857&tilematrix={z}&tilerow={y}&tilecol={x}&format=image/png&' + timeParam + '&STYLE=' + styleParams;
+                
+                if (elevationParam) {
+                    url += '&' + elevationParam;
+                }
+                
+                console.log('Adding layer:', layerId);
+                console.log('Layer name:', layerName);
+                console.log('Full URL template:', url);
+                
+                const layer = L.tileLayer(url, {
+                    opacity: this.currentOpacity,
+                    attribution: 'Copernicus Marine Service',
+                    crossOrigin: true
+                });
+                
+                layer.on('tileerror', (e) => {
+                    console.warn('Tile load error for layer:', layerId);
+                    console.warn('Error details:', e);
+                    console.warn('Failed URL:', e.target.src);
+                });
+                
+                layer.on('tileload', () => {
+                    console.log('Tile loaded successfully for layer:', layerId);
+                });
+                
+                layer.addTo(this.map);
+                this.activeLayers.set(layerId, { layer, config });
+                
+                this.showNotification('Loading ' + config.title + '...', 2000);
+            }
+            
+            removeLayer(layerId) {
+                const layerData = this.activeLayers.get(layerId);
+                if (layerData) {
+                    this.map.removeLayer(layerData.layer);
+                    this.activeLayers.delete(layerId);
+                }
+            }
+            
+            buildStyleParams(config) {
+                let styleParams = [];
+                
+                if (config.colormap) {
+                    styleParams.push('cmap:' + config.colormap);
+                }
+                
+                if (config.range) {
+                    styleParams.push('range:' + config.range);
+                }
+                
+                if (config.logScale) {
+                    styleParams.push('logScale');
+                }
+                
+                if (config.style) {
+                    styleParams.push(config.style);
+                }
+                
+                return styleParams.join(',') || 'default';
+            }
+            
+            updateAllLayers() {
+                const activeLayerIds = Array.from(this.activeLayers.keys());
+                
+                activeLayerIds.forEach(layerId => {
+                    this.removeLayer(layerId);
+                    const checkbox = document.querySelector('input[data-layer="' + layerId + '"]');
+                    checkbox.checked = false;
+                });
+                
+                activeLayerIds.forEach(layerId => {
+                    const checkbox = document.querySelector('input[data-layer="' + layerId + '"]');
+                    checkbox.checked = true;
+                    this.addLayer(layerId);
+                });
+            }
+            
+            updateLayerOpacity() {
+                this.activeLayers.forEach(({ layer }) => {
+                    layer.setOpacity(this.currentOpacity);
+                });
+            }
+            
+            updateCoordinates(latlng) {
+                const coordsElement = document.getElementById('coordinates');
+                coordsElement.innerHTML = 'Lat: ' + latlng.lat.toFixed(4) + '<br>Lon: ' + latlng.lng.toFixed(4);
+            }
+            
+            queryLayerData(latlng) {
+                if (this.activeLayers.size === 0) {
+                    const dataValuesElement = document.getElementById('data-values');
+                    dataValuesElement.innerHTML = '<div style="margin-top: 0.5rem; padding: 0.5rem; background: rgba(255,255,255,0.05); border-radius: 4px;"><small>No layers active. Enable a layer to query data.</small></div>';
+                    return;
+                }
+                
+                this.showNotification('Querying data at location...', 1000);
+                
+                const dataValuesElement = document.getElementById('data-values');
+                dataValuesElement.innerHTML = '<div style="margin-top: 0.5rem; padding: 0.5rem; background: rgba(255,255,255,0.05); border-radius: 4px;"><small>🔍 Querying ' + this.activeLayers.size + ' layer(s)...</small></div>';
+                
+                this.activeLayers.forEach(async ({ config }, layerId) => {
+                    try {
+                        const value = await this.getWMTSValueAtPoint(latlng.lat, latlng.lng, config, layerId);
+                        this.displayDataValue(layerId, config, value);
+                    } catch (error) {
+                        console.error('Error querying layer:', layerId, error);
+                        this.displayDataValue(layerId, config, { error: 'Query failed: ' + error.message });
+                    }
+                });
+            }
+            
+            // Improved coordinate transformation for WMTS
+            latLonToTileCoords(lat, lon, zoom, tilematrixset = 'EPSG:3857') {
+                if (tilematrixset === 'EPSG:3857') {
+                    // Web Mercator projection
+                    const x = (lon + 180) / 360;
+                    const latRad = lat * Math.PI / 180;
+                    const y = (1 - Math.asinh(Math.tan(latRad)) / Math.PI) / 2;
+                    
+                    const tileCount = Math.pow(2, zoom);
+                    const tileX = Math.floor(x * tileCount);
+                    const tileY = Math.floor(y * tileCount);
+                    
+                    const pixelX = Math.floor((x * tileCount - tileX) * 256);
+                    const pixelY = Math.floor((y * tileCount - tileY) * 256);
+                    
+                    return { tileX, tileY, pixelX, pixelY };
+                } else if (tilematrixset === 'EPSG:4326') {
+                    // Geographic projection
+                    const constrainedLat = Math.max(-89.999999, lat);
+                    const constrainedLon = lon === 180 ? 179.999999 : lon;
+                    
+                    const minLat = -90;
+                    const maxLat = 90;
+                    const minLon = -180;
+                    const maxLon = 180;
+                    
+                    const tileCountX = Math.pow(2, zoom + 1);
+                    const tileCountY = Math.pow(2, zoom);
+                    
+                    const tileWidth = (maxLon - minLon) / tileCountX;
+                    const tileHeight = (maxLat - minLat) / tileCountY;
+                    
+                    const tileX = Math.floor((constrainedLon - minLon) / tileWidth);
+                    const tileY = Math.floor((maxLat - constrainedLat) / tileHeight);
+                    
+                    const pixelX = Math.floor((((constrainedLon - minLon) % tileWidth) / tileWidth) * 256);
+                    const pixelY = Math.floor((((maxLat - constrainedLat) % tileHeight) / tileHeight) * 256);
+                    
+                    return { tileX, tileY, pixelX, pixelY };
+                }
+                
+                throw new Error('Unsupported tile matrix set: ' + tilematrixset);
+            }
+            
+            async getWMTSValueAtPoint(lat, lon, config, layerId) {
+                const baseUrl = "https://wmts.marine.copernicus.eu/teroWmts";
+                const zoom = 8; // Try different zoom levels if needed
+                const layerName = config.product + '/' + config.dataset + '/' + config.variable;
+                
+                // Try EPSG:3857 first, then EPSG:4326 if that fails
+                const tilematrixsets = ['EPSG:3857', 'EPSG:4326'];
+                
+                for (const tilematrixset of tilematrixsets) {
+                    try {
+                        const { tileX, tileY, pixelX, pixelY } = this.latLonToTileCoords(lat, lon, zoom, tilematrixset);
+                        
+                        const elevationParam = (!config.surfaceOnly && this.currentDepth !== '0') ? 
+                            'elevation=' + this.currentDepth : 'elevation=0';
+                            
+                        const timeParam = 'time=' + this.currentDate + 'T00:00:00.000000000Z';
+                        
+                        const url = baseUrl + '?SERVICE=WMTS&REQUEST=GetFeatureInfo&VERSION=1.0.0&LAYER=' + layerName + 
+                                   '&INFOFORMAT=application/json&TILEMATRIXSET=' + tilematrixset + 
+                                   '&TILEMATRIX=' + zoom + '&TILEROW=' + tileY + '&TILECOL=' + tileX + 
+                                   '&I=' + pixelX + '&J=' + pixelY + '&' + elevationParam + '&' + timeParam;
+                        
+                        console.log('Querying URL (' + tilematrixset + '):', url);
+                        
+                        const response = await fetch(url);
+                        if (!response.ok) {
+                            throw new Error('HTTP ' + response.status + ': ' + response.statusText);
+                        }
+                        
+                        const data = await response.json();
+                        
+                        if (data.features && data.features.length > 0 && data.features[0].properties) {
+                            return data.features[0].properties;
+                        }
+                        
+                        // If no features found, try next tilematrixset
+                        continue;
+                        
+                    } catch (error) {
+                        console.warn('Failed with ' + tilematrixset + ':', error.message);
+                        continue;
+                    }
+                }
+                
+                // If all tilematrixsets failed, try a simpler approach with mock data for demonstration
+                console.warn('All GetFeatureInfo requests failed, returning mock data for demo');
+                return this.getMockDataValue(config, lat, lon);
+            }
+            
+            getMockDataValue(config, lat, lon) {
+                // Generate realistic mock data based on location and variable type
+                const variable = config.variable;
+                const range = config.range ? config.range.split('/').map(Number) : [0, 1];
+                const min = range[0];
+                const max = range[1];
+                
+                // Use lat/lon as seed for consistent "data"
+                const seed = Math.abs(Math.sin(lat * 0.1) * Math.cos(lon * 0.1));
+                
+                let value;
+                switch (variable) {
+                    case 'thetao': // Temperature
+                        value = 15 + (20 * seed) - Math.abs(lat) * 0.3;
+                        break;
+                    case 'so': // Salinity
+                        value = 34 + (4 * seed);
+                        break;
+                    case 'chl': // Chlorophyll
+                        value = 0.1 + (0.5 * seed);
+                        break;
+                    case 'o2': // Oxygen
+                        value = 200 + (100 * seed);
+                        break;
+                    case 'ph': // pH
+                        value = 7.8 + (0.3 * seed);
+                        break;
+                    default:
+                        value = min + ((max - min) * seed);
+                }
+                
+                const result = {};
+                result[variable] = Number(value.toFixed(3));
+                result._mock = true; // Flag to indicate this is mock data
+                return result;
+            }
+            
+            displayDataValue(layerId, config, value) {
+                const dataValuesElement = document.getElementById('data-values');
+                
+                let existingData = dataValuesElement.innerHTML;
+                if (existingData.includes('Querying')) {
+                    existingData = '';
+                }
+                
+                let displayValue = 'N/A';
+                let unit = '';
+                let isMock = false;
+                
+                if (value.error) {
+                    displayValue = value.error;
+                } else {
+                    const mainVar = config.variable;
+                    if (value[mainVar] !== undefined) {
+                        displayValue = typeof value[mainVar] === 'number' ? 
+                            value[mainVar].toFixed(3) : value[mainVar];
+                        
+                        isMock = value._mock === true;
+                        
+                        switch (mainVar) {
+                            case 'chl': unit = ' mg/m³'; break;
+                            case 'o2': unit = ' mmol/m³'; break;
+                            case 'no3': case 'po4': case 'si': case 'fe': case 'phyc': unit = ' mmol/m³'; break;
+                            case 'ph': unit = ''; break;
+                            case 'spco2': unit = ' Pa'; break;
+                            case 'nppv': unit = ' mg/m³/day'; break;
+                            case 'thetao': unit = ' °C'; break;
+                            case 'so': unit = ' PSU'; break;
+                            default: unit = '';
+                        }
+                    }
+                }
+                
+                const mockIndicator = isMock ? ' <span style="color: #fbbf24; font-size: 0.7rem;">(Demo)</span>' : '';
+                const valueDisplay = '<div style="margin-top: 0.5rem; padding: 0.5rem; background: rgba(59, 130, 246, 0.1); border-radius: 4px; border: 1px solid rgba(59, 130, 246, 0.3);"><div style="font-weight: 500; color: #3b82f6; font-size: 0.8rem;">' + config.title + mockIndicator + '</div><div style="color: #e2e8f0; font-size: 0.9rem;">' + displayValue + unit + '</div></div>';
+                
+                dataValuesElement.innerHTML = existingData + valueDisplay;
+            }
+            
+            updateLegend() {
+                const legend = document.getElementById('legend');
+                const legendContent = document.getElementById('legend-content');
+                
+                if (this.activeLayers.size === 0) {
+                    legend.style.display = 'none';
+                    return;
+                }
+                
+                legend.style.display = 'block';
+                legendContent.innerHTML = '';
+                
+                this.activeLayers.forEach(({ config }, layerId) => {
+                    const item = document.createElement('div');
+                    item.className = 'legend-item';
+                    
+                    const title = document.createElement('div');
+                    title.className = 'legend-title';
+                    title.textContent = config.title;
+                    
+                    const range = document.createElement('div');
+                    range.className = 'legend-range';
+                    const rangeText = config.range ? config.range.replace('/', ' - ') : 'Auto';
+                    range.textContent = 'Range: ' + rangeText + (config.logScale ? ' (log)' : '');
+                    
+                    const colorBar = document.createElement('div');
+                    colorBar.className = 'color-bar';
+                    if (config.colorGradient) {
+                        colorBar.style.background = config.colorGradient;
+                    }
+                    
+                    item.appendChild(title);
+                    item.appendChild(range);
+                    item.appendChild(colorBar);
+                    legendContent.appendChild(item);
+                });
+            }
+            
+            showNotification(message, duration) {
+                duration = duration || 3000;
+                let notification = document.getElementById('notification');
+                if (!notification) {
+                    notification = document.createElement('div');
+                    notification.id = 'notification';
+                    notification.style.cssText = 'position: fixed; top: 1rem; right: 1rem; background: rgba(0, 0, 0, 0.9); color: white; padding: 1rem; border-radius: 8px; border: 1px solid rgba(59, 130, 246, 0.5); z-index: 10000; backdrop-filter: blur(10px); max-width: 300px; transition: all 0.3s ease;';
+                    document.body.appendChild(notification);
+                }
+                
+                notification.textContent = message;
+                notification.style.display = 'block';
+                
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.style.display = 'none';
+                    }
+                }, duration);
+            }
+            
+            addTestLayer() {
+                if (this.activeLayers.has('test')) {
+                    this.removeLayer('test');
+                }
+                
+                const testUrl = 'https://wmts.marine.copernicus.eu/teroWmts?service=WMTS&request=GetTile&version=1.0.0&layer=GLOBAL_ANALYSISFORECAST_BGC_001_028/cmems_mod_glo_bgc-bio_anfc_0.25deg_P1D-m_202311/o2&tilematrixset=EPSG:3857&tilematrix={z}&tilerow={y}&tilecol={x}&format=image/png&time=' + this.currentDate + 'T00:00:00.000000000Z&elevation=-15.81&STYLE=logScale';
+                
+                console.log('Testing with URL:', testUrl);
+                
+                const layer = L.tileLayer(testUrl, {
+                    opacity: this.currentOpacity,
+                    attribution: 'Copernicus Marine Service - Test Layer',
+                    crossOrigin: true
+                });
+                
+                layer.on('tileerror', (e) => {
+                    console.error('Test layer tile error:', e);
+                    console.error('Failed URL:', e.target.src);
+                    this.showNotification('Test layer failed to load - check console', 5000);
+                });
+                
+                layer.on('tileload', () => {
+                    console.log('Test layer tile loaded successfully!');
+                    this.showNotification('Test layer loaded successfully!', 3000);
+                });
+                
+                layer.addTo(this.map);
+                this.activeLayers.set('test', { 
+                    layer, 
+                    config: { 
+                        title: 'Test O2 Layer', 
+                        range: '40/378',
+                        colorGradient: 'linear-gradient(to right, #440154, #31688e, #35b779, #fde725)'
+                    } 
+                });
+                
+                this.updateLegend();
+                this.showNotification('Loading test oxygen layer...', 2000);
+            }
+        }
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            const viewer = new CopernicusMarineViewer();
+        });
+    </script>
+</body>
+</html>
+                    '
