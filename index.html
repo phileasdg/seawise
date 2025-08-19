@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sailing Map</title>
+    <title>Seawise</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
     <!-- Leaflet CSS & JS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -19,13 +19,22 @@
     <script src="https://fishing-app.gpsnauticalcharts.com/i-boating-fishing-marine-navigation-sdk/5.5/leaflet-blc-adapter.js"></script>
 
     <style>
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #020617; /* Even darker slate */
-            color: #e2e8f0;
-            overflow: hidden;
+        :root {
+            --dark-bg: #0f172a; /* Darker navy */
+            --panel-bg: #1e293b; /* Slate */
+            --border-color: #334155;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --accent-color: #38bdf8; /* Sky blue */
         }
 
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--dark-bg);
+            color: var(--text-primary);
+            overflow: hidden;
+        }
+        
         #app-container {
             display: flex;
             height: 100vh;
@@ -33,16 +42,16 @@
         }
 
         #sidebar {
-            width: 380px;
-            background-color: rgba(15, 23, 42, 0.8); /* Semi-transparent slate */
-            backdrop-filter: blur(12px);
-            border-right: 1px solid rgba(255, 255, 255, 0.1);
+            width: 350px;
+            background-color: var(--panel-bg);
+            border-right: 1px solid var(--border-color);
             display: flex;
             flex-direction: column;
             height: 100%;
             position: relative;
-            z-index: 1000;
+            z-index: 1001;
             transition: transform 0.3s ease-in-out;
+            flex-shrink: 0;
         }
 
         #map-container {
@@ -54,77 +63,125 @@
         #map {
             width: 100%;
             height: 100%;
+            background-color: var(--dark-bg);
         }
         
-        .luxury-input {
-            background: rgba(30, 41, 59, 0.8);
-            border: 1px solid rgba(255, 255, 255, 0.25);
-            transition: all 0.3s ease;
+        .control-input {
+            background: var(--dark-bg);
+            border: 1px solid var(--border-color);
+            transition: all 0.2s ease;
+            color: var(--text-primary);
+            border-radius: 6px;
         }
 
-        .luxury-input:focus {
-            background: rgba(30, 41, 59, 0.9);
-            border-color: rgba(65, 126, 176, 0.6);
-            box-shadow: 0 0 0 3px rgba(65, 126, 176, 0.15);
+        .control-input:focus {
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2);
+            outline: none;
+        }
+        
+        .control-input::placeholder {
+            color: var(--text-secondary);
         }
 
-        .radio-luxury {
-            appearance: none;
+        .radio-label {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            padding: 0.5rem 0;
+        }
+        .radio-custom {
             width: 18px;
             height: 18px;
-            border: 2px solid rgba(255, 255, 255, 0.4);
+            border: 2px solid var(--border-color);
             border-radius: 50%;
-            background: rgba(30, 41, 59, 0.6);
-            position: relative;
-            cursor: pointer;
-            transition: all 0.3s ease;
+            margin-right: 0.75rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: border-color 0.2s ease;
         }
-        
-        .radio-luxury:checked {
-            border-color: #417eb0;
-            background: rgba(65, 126, 176, 0.3);
-        }
-        
-        .radio-luxury:checked::after {
+        .radio-custom::after {
             content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
             width: 8px;
             height: 8px;
+            background-color: var(--accent-color);
             border-radius: 50%;
-            background: #417eb0;
+            transform: scale(0);
+            transition: transform 0.2s ease;
         }
-        
-        /* Custom Leaflet Controls */
-        .leaflet-control-zoom-in, .leaflet-control-zoom-out {
-            background-color: rgba(30, 41, 59, 0.8) !important;
-            color: #e2e8f0 !important;
-            border: 1px solid rgba(255, 255, 255, 0.2) !important;
-            border-radius: 8px !important;
+        input[type="radio"]:checked + .radio-custom {
+            border-color: var(--accent-color);
         }
-        .leaflet-control-zoom-in:hover, .leaflet-control-zoom-out:hover {
-            background-color: rgba(51, 65, 85, 0.9) !important;
-        }
-        .leaflet-bar a {
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+        input[type="radio"]:checked + .radio-custom::after {
+            transform: scale(1);
         }
 
-        /* Mobile Responsive Styles */
+        
+        /* Custom Leaflet Controls */
+        .leaflet-control-zoom {
+             border: 1px solid var(--border-color) !important;
+             border-radius: 6px !important;
+             overflow: hidden;
+        }
+        .leaflet-control-zoom-in, .leaflet-control-zoom-out {
+            background-color: var(--panel-bg) !important;
+            color: var(--text-primary) !important;
+            width: 32px !important;
+            height: 32px !important;
+            line-height: 32px !important;
+        }
+        .leaflet-control-zoom-in:hover, .leaflet-control-zoom-out:hover {
+            background-color: #374151 !important;
+        }
+        .leaflet-bar a {
+            border-bottom: 1px solid var(--border-color) !important;
+        }
+        .leaflet-bar a:last-child {
+            border-bottom: none !important;
+        }
+
+        /* Notification Styling */
+        #notification {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translate(-50%, 200%);
+            background-color: var(--panel-bg);
+            color: var(--text-primary);
+            padding: 12px 24px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            z-index: 2000;
+            transition: transform 0.5s ease-in-out;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+        }
+        #notification.show {
+            transform: translate(-50%, 0);
+        }
+        
+        #coords-container {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 999;
+            background-color: rgba(31, 41, 55, 0.8);
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            color: var(--text-secondary);
+            border: 1px solid var(--border-color);
+            font-family: 'monospace';
+            white-space: nowrap;
+        }
+
         @media (max-width: 768px) {
-            #app-container {
-                flex-direction: column;
-            }
             #sidebar {
                 position: absolute;
-                top: 0;
-                left: 0;
+                transform: translateX(-100%);
                 width: 85%;
                 max-width: 320px;
-                height: 100%;
-                transform: translateX(-100%);
-                border-right: 1px solid rgba(255, 255, 255, 0.1);
             }
             #sidebar.open {
                 transform: translateX(0);
@@ -133,74 +190,79 @@
                 width: 100%;
                 height: 100%;
             }
-            #sidebar-toggle {
-                display: block;
-            }
         }
     </style>
 </head>
 <body>
 
     <div id="app-container">
-        <!-- Left Panel: Sidebar -->
-        <div id="sidebar" class="p-4 sm:p-6 flex flex-col">
-            <header class="mb-6 flex-shrink-0">
-                <h1 class="text-2xl font-bold text-white mb-1">Sailing Map</h1>
-                <p class="text-sm text-slate-400">Explore nautical charts and satellite imagery.</p>
+        <div id="sidebar" class="flex flex-col">
+            <header class="p-6 flex-shrink-0 text-left border-b border-gray-700 flex justify-between items-center">
+                <h1 class="text-2xl font-bold text-white">Seawise</h1>
+                <button id="panel-close" class="md:hidden p-1 text-gray-400 hover:text-white">
+                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
             </header>
 
-            <div class="flex-grow overflow-y-auto pr-2">
-                <!-- Navigation Search -->
-                <div class="space-y-3 mb-6">
-                    <label class="font-semibold text-white/90 text-sm flex items-center space-x-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                        <span>Navigation Search</span>
-                    </label>
+            <div class="flex-grow overflow-y-auto">
+                <div class="p-6 space-y-3 border-b border-gray-700">
+                    <label class="font-semibold text-sm text-gray-400">LOCATION SEARCH</label>
                     <div class="flex items-center space-x-2">
-                        <input type="text" id="location-search" class="luxury-input block w-full rounded-xl px-4 py-3 text-white placeholder-white/50 text-sm focus:outline-none" placeholder="e.g., Nantucket Sound">
-                        <button id="search-btn" class="bg-slate-700 hover:bg-slate-600 p-3 rounded-xl text-white/80 shrink-0 transition-colors">
-                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                        <input type="text" id="location-search" class="control-input block w-full px-3 py-2" placeholder="e.g., Nantucket Sound">
+                        <button id="search-btn" class="bg-gray-700 hover:bg-gray-600 p-2.5 rounded-md text-gray-300 shrink-0 transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
                         </button>
                     </div>
                 </div>
 
-                <!-- Base Layer Controls -->
-                <div class="space-y-4 mb-4">
-                    <label class="font-semibold text-white/90 text-sm flex items-center space-x-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2,17 12,22 22,17"></polyline><polyline points="2,12 12,17 22,12"></polyline></svg>
-                        <span>Base Maps</span>
-                    </label>
-                    <div id="base-layer-grid" class="grid grid-cols-2 gap-3 p-3 bg-slate-800/50 rounded-xl">
+                <div class="p-6 space-y-3 border-b border-gray-700">
+                    <span class="font-semibold text-sm text-gray-400">MAP LAYERS</span>
+                    <div id="base-layer-grid" class="space-y-2">
                         <!-- Base layers will be added here dynamically -->
                     </div>
+                </div>
+                
+                <div class="p-6 space-y-3">
+                    <span class="font-semibold text-sm text-gray-400">TOOLS</span>
+                    <button id="find-me-btn" class="w-full text-left p-3 flex items-center space-x-3 hover:bg-gray-700/50 rounded-md transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-400"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><line x1="22" y1="12" x2="18" y2="12"></line><line x1="6" y1="12" x2="2" y2="12"></line><line x1="12" y1="6" x2="12" y2="2"></line><line x1="12" y1="22" x2="12" y2="18"></line></svg>
+                        <span class="text-sm text-gray-300">Find My Location</span>
+                    </button>
                 </div>
             </div>
         </div>
 
-        <!-- Right Panel: Map -->
         <div id="map-container">
             <div id="map"></div>
-            <!-- Sidebar Toggle Button for Mobile -->
-            <button id="sidebar-toggle" class="md:hidden absolute top-4 left-4 z-[1001] p-2 bg-slate-800/80 backdrop-blur-sm rounded-md text-white">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+            <button id="panel-toggle" class="absolute top-4 left-4 z-[999] p-2 bg-gray-800/80 backdrop-blur-sm rounded-md text-white md:hidden">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" id="menu-icon"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
             </button>
+            <div id="coords-container">Lat: --.----, Lng: --.----</div>
         </div>
     </div>
     
+    <div id="notification"></div>
+
     <script>
-        // --- Global Variables ---
         let map;
         let currentBaseLayer = null;
         let baseLayers = {};
         const IBOATING_API_KEY = "wYhXj07uz1kfDTKR1qxuBn";
 
-        // --- Main Application Logic ---
+        function showNotification(message, duration = 3000) {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.classList.add('show');
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, duration);
+        }
+
         function initializeMap() {
             map = L.map('map', { 
-                zoomControl: false // We disable the default and add a custom one
-            }).setView([20, 0], 3); // Start with a global view
+                zoomControl: false 
+            }).setView([20, 0], 3);
 
-            // Add styled zoom control
             L.control.zoom({
                 position: 'bottomright'
             }).addTo(map);
@@ -214,6 +276,7 @@
             
             switchToBaseLayer('nautical');
             updateBaseLayerControlPanel();
+            setupMapInfo();
         }
 
         function switchToBaseLayer(layerKey) {
@@ -224,9 +287,6 @@
                 }
                 map.addLayer(newLayer);
                 currentBaseLayer = newLayer;
-                if (typeof currentBaseLayer.setZIndex === 'function') {
-                    currentBaseLayer.setZIndex(0);
-                }
             }
         }
 
@@ -240,13 +300,44 @@
                 if (data && data.length > 0) {
                     const { lat, lon } = data[0];
                     map.setView([lat, lon], 13);
+                    if (window.innerWidth <= 768) {
+                        document.getElementById('sidebar').classList.remove('open');
+                    }
                 } else {
-                    alert('Location not found.'); // Using a simple alert for now
+                    showNotification('Location not found.');
                 }
             } catch (error) {
                 console.error('Search failed:', error);
-                alert('Failed to search for location.');
+                showNotification('Failed to search for location.');
             }
+        }
+        
+        function findMyLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition((position) => {
+                    const lat = position.coords.latitude;
+                    const lng = position.coords.longitude;
+                    map.setView([lat, lng], 14);
+                    L.marker([lat, lng]).addTo(map).bindPopup("Your Location").openPopup();
+                    if (window.innerWidth <= 768) {
+                        document.getElementById('sidebar').classList.remove('open');
+                    }
+                }, () => {
+                    showNotification('Unable to retrieve your location.');
+                });
+            } else {
+                showNotification('Geolocation is not supported by this browser.');
+            }
+        }
+
+        function setupMapInfo() {
+            const coordsContainer = document.getElementById('coords-container');
+            map.on('mousemove', function(e) {
+                coordsContainer.innerHTML = `Lat: ${e.latlng.lat.toFixed(4)}, Lng: ${e.latlng.lng.toFixed(4)}`;
+            });
+            map.on('mouseout', function() {
+                 coordsContainer.innerHTML = 'Lat: --.----, Lng: --.----';
+            });
         }
 
         function updateBaseLayerControlPanel() {
@@ -254,45 +345,51 @@
             grid.innerHTML = '';
             const baseLayerInfo = { nautical: 'Nautical', satellite: 'Satellite', osm: 'Coastal', terrain: 'Terrain' };
             Object.keys(baseLayerInfo).forEach(key => {
-                const div = document.createElement('div');
-                div.className = 'flex items-center space-x-3';
-                div.innerHTML = `<input type="radio" id="${key}" name="baselayer" value="${key}" class="radio-luxury"><label for="${key}" class="text-sm text-white/80 cursor-pointer">${baseLayerInfo[key]}</label>`;
-                grid.appendChild(div);
+                const label = document.createElement('label');
+                label.className = 'radio-label text-sm text-gray-300';
+                label.innerHTML = `
+                    <input type="radio" id="baselayer-${key}" name="baselayer" value="${key}" class="hidden">
+                    <span class="radio-custom"></span>
+                    <span>${baseLayerInfo[key]}</span>
+                `;
+                grid.appendChild(label);
             });
             document.querySelectorAll('input[name="baselayer"]').forEach(radio => radio.addEventListener('change', (e) => switchToBaseLayer(e.target.value)));
             document.querySelector('input[name="baselayer"][value="nautical"]').checked = true;
         }
         
-        function setupSidebarToggle() {
-            const sidebar = document.getElementById('sidebar');
-            const toggleButton = document.getElementById('sidebar-toggle');
+        function setupPanelToggle() {
+            const panel = document.getElementById('sidebar');
+            const toggleButton = document.getElementById('panel-toggle');
+            const closeButton = document.getElementById('panel-close');
             
+            const openPanel = () => {
+                panel.classList.add('open');
+                setTimeout(() => { map.invalidateSize(); }, 300);
+            };
+
+            const closePanel = () => {
+                panel.classList.remove('open');
+                setTimeout(() => { map.invalidateSize(); }, 300);
+            };
+
             toggleButton.addEventListener('click', (e) => {
                 e.stopPropagation();
-                sidebar.classList.toggle('open');
-                // After the transition, tell the map to resize itself
-                setTimeout(() => {
-                    map.invalidateSize();
-                }, 300);
+                openPanel();
             });
 
-            // Close sidebar if clicking outside of it on mobile
-            document.getElementById('map-container').addEventListener('click', () => {
-                if (sidebar.classList.contains('open')) {
-                    sidebar.classList.remove('open');
-                     setTimeout(() => {
-                        map.invalidateSize();
-                    }, 300);
-                }
+            closeButton.addEventListener('click', (e) => {
+                e.stopPropagation();
+                closePanel();
             });
         }
-
-
+        
         document.addEventListener('DOMContentLoaded', async () => {
             initializeMap();
-            setupSidebarToggle();
+            setupPanelToggle();
             document.getElementById('search-btn').addEventListener('click', searchLocation);
             document.getElementById('location-search').addEventListener('keypress', (e) => { if (e.key === 'Enter') searchLocation(); });
+            document.getElementById('find-me-btn').addEventListener('click', findMyLocation);
         });
     </script>
 </body>
