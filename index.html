@@ -1,6 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-K13VH578CQ"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+
+      gtag('config', 'G-K13VH578CQ');
+    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Seawise</title>
@@ -13,10 +22,15 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-    <!-- i-Boating Nautical Mapping -->
+    <!-- i-Boating Nautical Mapping (for Leaflet) -->
     <link rel='stylesheet' href='https://fishing-app.gpsnauticalcharts.com/i-boating-fishing-marine-navigation-sdk/5.5/blc-maps.css' />
     <script src='https://fishing-app.gpsnauticalcharts.com/i-boating-fishing-marine-navigation-sdk/5.5/blc-maps.js'></script>
     <script src="https://fishing-app.gpsnauticalcharts.com/i-boating-fishing-marine-navigation-sdk/5.5/leaflet-blc-adapter.js"></script>
+
+    <!-- Leaflet PolylineMeasure (for measurement) -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet-polylinemeasure@2.1.0/Leaflet.PolylineMeasure.css" />
+    <script src="https://cdn.jsdelivr.net/npm/leaflet-polylinemeasure@2.1.0/Leaflet.PolylineMeasure.min.js"></script>
+
 
     <style>
         :root {
@@ -84,11 +98,16 @@
             color: var(--text-secondary);
         }
 
-        .radio-label {
+        .radio-label, .checkbox-label {
             display: flex;
             align-items: center;
             cursor: pointer;
-            padding: 0.5rem 0;
+            padding: 0.5rem 0.75rem;
+            border-radius: 6px;
+            transition: background-color 0.2s ease;
+        }
+        .radio-label:hover, .checkbox-label:hover {
+            background-color: rgba(255, 255, 255, 0.05);
         }
         .radio-custom {
             width: 18px;
@@ -100,6 +119,7 @@
             align-items: center;
             justify-content: center;
             transition: border-color 0.2s ease;
+            flex-shrink: 0;
         }
         .radio-custom::after {
             content: '';
@@ -114,6 +134,30 @@
             border-color: var(--accent-color);
         }
         input[type="radio"]:checked + .radio-custom::after {
+            transform: scale(1);
+        }
+        
+        .checkbox-custom {
+            width: 18px;
+            height: 18px;
+            border: 2px solid var(--border-color);
+            border-radius: 4px;
+            margin-right: 0.75rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+        }
+        .checkbox-custom svg {
+            transform: scale(0);
+            transition: transform 0.2s ease;
+        }
+        input[type="checkbox"]:checked + .checkbox-custom {
+            background-color: var(--accent-color);
+            border-color: var(--accent-color);
+        }
+        input[type="checkbox"]:checked + .checkbox-custom svg {
             transform: scale(1);
         }
 
@@ -139,6 +183,34 @@
         }
         .leaflet-bar a:last-child {
             border-bottom: none !important;
+        }
+        .leaflet-polylinemeasure-control {
+            background-color: var(--panel-bg) !important;
+            border: 1px solid var(--border-color) !important;
+            border-radius: 8px !important;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
+            width: 40px !important;
+            height: 40px !important;
+        }
+        .leaflet-polylinemeasure-control a {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='22' height='22' viewBox='0 0 24 24' fill='none' stroke='%23f1f5f9' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21.3 15.3a2.4 2.4 0 0 1 0 3.4l-2.6 2.6a2.4 2.4 0 0 1-3.4 0L2.7 8.7a2.4 2.4 0 0 1 0-3.4l2.6-2.6a2.4 2.4 0 0 1 3.4 0L15.3 9.3'/%3E%3Cpath d='m12.3 3.7.9 5.8 5.8.9'/%3E%3Cpath d='m8 16 4-4'/%3E%3C/svg%3E") !important;
+            background-size: 22px 22px !important;
+            background-position: center !important;
+            width: 40px !important;
+            height: 40px !important;
+            border-radius: 8px !important;
+            transition: background-color 0.2s ease !important;
+        }
+        .leaflet-polylinemeasure-control.active a, .leaflet-polylinemeasure-control:hover a {
+             background-color: var(--accent-color) !important;
+             background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='22' height='22' viewBox='0 0 24 24' fill='none' stroke='%230f172a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21.3 15.3a2.4 2.4 0 0 1 0 3.4l-2.6 2.6a2.4 2.4 0 0 1-3.4 0L2.7 8.7a2.4 2.4 0 0 1 0-3.4l2.6-2.6a2.4 2.4 0 0 1 3.4 0L15.3 9.3'/%3E%3Cpath d='m12.3 3.7.9 5.8 5.8.9'/%3E%3Cpath d='m8 16 4-4'/%3E%3C/svg%3E") !important;
+        }
+        .polyline-measure-result-popup {
+            background-color: var(--panel-bg) !important;
+            border: 1px solid var(--border-color) !important;
+            color: var(--text-primary) !important;
+            border-radius: 6px !important;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
         }
 
         /* Notification Styling */
@@ -217,17 +289,55 @@
 
                 <div class="p-6 space-y-3 border-b border-gray-700">
                     <span class="font-semibold text-sm text-gray-400">MAP LAYERS</span>
-                    <div id="base-layer-grid" class="space-y-2">
-                        <!-- Base layers will be added here dynamically -->
+                    <div id="base-layer-grid" class="space-y-1">
+                         <!-- Dynamically populated -->
                     </div>
                 </div>
                 
-                <div class="p-6 space-y-3">
-                    <span class="font-semibold text-sm text-gray-400">TOOLS</span>
-                    <button id="find-me-btn" class="w-full text-left p-3 flex items-center space-x-3 hover:bg-gray-700/50 rounded-md transition-colors">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-400"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><line x1="22" y1="12" x2="18" y2="12"></line><line x1="6" y1="12" x2="2" y2="12"></line><line x1="12" y1="6" x2="12" y2="2"></line><line x1="12" y1="22" x2="12" y2="18"></line></svg>
-                        <span class="text-sm text-gray-300">Find My Location</span>
-                    </button>
+                <div id="map-settings" class="p-6 space-y-6">
+                    <div>
+                        <span class="font-semibold text-sm text-gray-400">DISTANCE UNITS</span>
+                        <div class="mt-2 space-y-1">
+                            <label class="radio-label text-sm text-gray-300"><input type="radio" name="distance_unit" value="nm" class="hidden" checked><span class="radio-custom"></span><span>Nautical Miles</span></label>
+                            <label class="radio-label text-sm text-gray-300"><input type="radio" name="distance_unit" value="km" class="hidden"><span class="radio-custom"></span><span>Kilometers</span></label>
+                            <label class="radio-label text-sm text-gray-300"><input type="radio" name="distance_unit" value="mi" class="hidden"><span class="radio-custom"></span><span>Miles</span></label>
+                        </div>
+                    </div>
+                    <div>
+                        <span class="font-semibold text-sm text-gray-400">DEPTH UNITS</span>
+                         <div class="mt-2 space-y-1">
+                            <label class="radio-label text-sm text-gray-300"><input type="radio" name="depth_unit" value="m" class="hidden" checked><span class="radio-custom"></span><span>Metres</span></label>
+                            <label class="radio-label text-sm text-gray-300"><input type="radio" name="depth_unit" value="ft" class="hidden"><span class="radio-custom"></span><span>Feet</span></label>
+                            <label class="radio-label text-sm text-gray-300"><input type="radio" name="depth_unit" value="fathom" class="hidden"><span class="radio-custom"></span><span>Fathoms</span></label>
+                        </div>
+                    </div>
+                    <div>
+                        <label for="depth-offset" class="font-semibold text-sm text-gray-400">DEPTH OFFSET</label>
+                        <input type="number" id="depth-offset" class="control-input block w-full px-3 py-2 mt-2" value="0">
+                    </div>
+                     <div>
+                        <label class="checkbox-label text-sm font-semibold text-gray-400">
+                            <input type="checkbox" id="custom-shading-toggle" class="hidden">
+                            <span class="checkbox-custom">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                            </span>
+                            <span>CUSTOM SHADING</span>
+                        </label>
+                        <div id="custom-shading-inputs" class="hidden mt-4 space-y-3 pl-4 border-l-2 border-gray-700 ml-3">
+                             <div>
+                                <label for="shallow-depth" class="text-sm text-gray-400">Shallow Depth</label>
+                                <input type="number" id="shallow-depth" class="control-input block w-full px-3 py-2 mt-1" value="3">
+                             </div>
+                             <div>
+                                <label for="safety-depth" class="text-sm text-gray-400">Safety Depth</label>
+                                <input type="number" id="safety-depth" class="control-input block w-full px-3 py-2 mt-1" value="8">
+                             </div>
+                             <div>
+                                <label for="deep-depth" class="text-sm text-gray-400">Deep Depth</label>
+                                <input type="number" id="deep-depth" class="control-input block w-full px-3 py-2 mt-1" value="20">
+                             </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -244,11 +354,15 @@
     <div id="notification"></div>
 
     <script>
+        // --- Global State & Constants ---
         let map;
         let currentBaseLayer = null;
         let baseLayers = {};
+        let polylineMeasure; 
         const IBOATING_API_KEY = "wYhXj07uz1kfDTKR1qxuBn";
-
+        let settingsTimeout;
+        
+        // --- Core Functions ---
         function showNotification(message, duration = 3000) {
             const notification = document.getElementById('notification');
             notification.textContent = message;
@@ -261,35 +375,78 @@
         function initializeMap() {
             map = L.map('map', { 
                 zoomControl: false 
-            }).setView([20, 0], 3);
+            }).setView([44.3876, -68.2039], 12); // Bar Harbor, ME
 
-            L.control.zoom({
-                position: 'bottomright'
-            }).addTo(map);
+            L.control.zoom({ position: 'bottomright' }).addTo(map);
 
             baseLayers = {
                 nautical: L.blcGL({ blc_access_token: IBOATING_API_KEY }),
-                satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'),
-                osm: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'),
-                terrain: L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png')
+                satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}')
             };
             
-            switchToBaseLayer('nautical');
             updateBaseLayerControlPanel();
+            applyMapSettings();
             setupMapInfo();
+            initializePolylineMeasure(); 
         }
 
         function switchToBaseLayer(layerKey) {
             const newLayer = baseLayers[layerKey];
             if (newLayer && newLayer !== currentBaseLayer) {
-                if (currentBaseLayer && map.hasLayer(currentBaseLayer)) {
+                if (currentBaseLayer) {
                     map.removeLayer(currentBaseLayer);
                 }
                 map.addLayer(newLayer);
                 currentBaseLayer = newLayer;
             }
         }
+        
+        function applyMapSettings() {
+            const settings = {
+                type: "apply_user_settings",
+                distance: document.querySelector('input[name="distance_unit"]:checked').value,
+                depth: document.querySelector('input[name="depth_unit"]:checked').value,
+                DepthOffset: parseFloat(document.getElementById('depth-offset').value) || 0,
+                CustomShading: document.getElementById('custom-shading-toggle').checked,
+                reload: true
+            };
 
+            if (settings.CustomShading) {
+                settings.ShallowDepth = parseFloat(document.getElementById('shallow-depth').value) || 3;
+                settings.SafetyDepth = parseFloat(document.getElementById('safety-depth').value) || 8;
+                settings.DeepDepth = parseFloat(document.getElementById('deep-depth').value) || 20;
+            }
+            
+            const nauticalLayer = baseLayers.nautical;
+            if (nauticalLayer && typeof nauticalLayer.applyUserSettings === 'function') {
+                 nauticalLayer.applyUserSettings(settings);
+                 if (typeof nauticalLayer.redraw === 'function') {
+                     nauticalLayer.redraw();
+                 }
+                 showNotification("Map settings updated");
+            }
+        }
+
+        function initializePolylineMeasure() {
+            if (polylineMeasure) {
+                polylineMeasure.remove();
+            }
+            
+            const selectedDistanceUnit = document.querySelector('input[name="distance_unit"]:checked').value;
+            const unitMapping = { nm: 'nauticalmiles', km: 'kilometres', mi: 'miles' };
+
+            polylineMeasure = L.control.polylineMeasure({
+                position: 'topleft',
+                unit: unitMapping[selectedDistanceUnit],
+                showBearings: true,
+                clearMeasurementsOnStop: false,
+                showClearControl: true,
+                showUnitControl: false
+            });
+            polylineMeasure.addTo(map);
+        }
+
+        // --- UI & Event Handlers ---
         async function searchLocation() {
             const query = document.getElementById('location-search').value.trim();
             if (!query) return;
@@ -311,24 +468,6 @@
                 showNotification('Failed to search for location.');
             }
         }
-        
-        function findMyLocation() {
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition((position) => {
-                    const lat = position.coords.latitude;
-                    const lng = position.coords.longitude;
-                    map.setView([lat, lng], 14);
-                    L.marker([lat, lng]).addTo(map).bindPopup("Your Location").openPopup();
-                    if (window.innerWidth <= 768) {
-                        document.getElementById('sidebar').classList.remove('open');
-                    }
-                }, () => {
-                    showNotification('Unable to retrieve your location.');
-                });
-            } else {
-                showNotification('Geolocation is not supported by this browser.');
-            }
-        }
 
         function setupMapInfo() {
             const coordsContainer = document.getElementById('coords-container');
@@ -343,19 +482,21 @@
         function updateBaseLayerControlPanel() {
             const grid = document.getElementById('base-layer-grid');
             grid.innerHTML = '';
-            const baseLayerInfo = { nautical: 'Nautical', satellite: 'Satellite', osm: 'Coastal', terrain: 'Terrain' };
+            const baseLayerInfo = { nautical: 'Nautical', satellite: 'Satellite' };
             Object.keys(baseLayerInfo).forEach(key => {
                 const label = document.createElement('label');
                 label.className = 'radio-label text-sm text-gray-300';
                 label.innerHTML = `
-                    <input type="radio" id="baselayer-${key}" name="baselayer" value="${key}" class="hidden">
+                    <input type="radio" name="baselayer" value="${key}" class="hidden">
                     <span class="radio-custom"></span>
                     <span>${baseLayerInfo[key]}</span>
                 `;
                 grid.appendChild(label);
             });
             document.querySelectorAll('input[name="baselayer"]').forEach(radio => radio.addEventListener('change', (e) => switchToBaseLayer(e.target.value)));
+            
             document.querySelector('input[name="baselayer"][value="nautical"]').checked = true;
+            switchToBaseLayer('nautical');
         }
         
         function setupPanelToggle() {
@@ -363,33 +504,43 @@
             const toggleButton = document.getElementById('panel-toggle');
             const closeButton = document.getElementById('panel-close');
             
-            const openPanel = () => {
-                panel.classList.add('open');
-                setTimeout(() => { map.invalidateSize(); }, 300);
-            };
+            const openPanel = () => panel.classList.add('open');
+            const closePanel = () => panel.classList.remove('open');
 
-            const closePanel = () => {
-                panel.classList.remove('open');
-                setTimeout(() => { map.invalidateSize(); }, 300);
-            };
-
-            toggleButton.addEventListener('click', (e) => {
-                e.stopPropagation();
-                openPanel();
-            });
-
-            closeButton.addEventListener('click', (e) => {
-                e.stopPropagation();
-                closePanel();
-            });
+            toggleButton.addEventListener('click', (e) => { e.stopPropagation(); openPanel(); });
+            closeButton.addEventListener('click', (e) => { e.stopPropagation(); closePanel(); });
         }
         
+        // --- App Initialization ---
         document.addEventListener('DOMContentLoaded', async () => {
             initializeMap();
             setupPanelToggle();
+            
             document.getElementById('search-btn').addEventListener('click', searchLocation);
             document.getElementById('location-search').addEventListener('keypress', (e) => { if (e.key === 'Enter') searchLocation(); });
-            document.getElementById('find-me-btn').addEventListener('click', findMyLocation);
+            
+            const settingsPane = document.getElementById('map-settings');
+            
+            const handleSettingsChange = (e) => {
+                clearTimeout(settingsTimeout);
+                settingsTimeout = setTimeout(() => {
+                    if (e.target.name === 'distance_unit') {
+                        initializePolylineMeasure();
+                    }
+                    applyMapSettings();
+                }, 500);
+            };
+
+            settingsPane.addEventListener('change', handleSettingsChange);
+            settingsPane.addEventListener('keyup', (e) => {
+                if (e.target.type === 'number') handleSettingsChange(e);
+            });
+
+            const shadingToggle = document.getElementById('custom-shading-toggle');
+            const shadingInputs = document.getElementById('custom-shading-inputs');
+            shadingToggle.addEventListener('change', () => {
+                shadingInputs.classList.toggle('hidden', !shadingToggle.checked);
+            });
         });
     </script>
 </body>

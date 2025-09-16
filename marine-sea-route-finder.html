@@ -1,0 +1,938 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Marine Route Finder</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            padding: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            font-weight: 300;
+        }
+        
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+        
+        .map-container {
+            position: relative;
+            border-radius: 15px;
+            overflow: visible;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+            background: white;
+        }
+        
+        .map-wrapper {
+            border-radius: 15px;
+            overflow: hidden;
+        }
+        
+        #map {
+            height: 70vh;
+            min-height: 500px;
+        }
+        
+        .controls {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-width: 160px;
+        }
+        
+        .control-btn {
+            background: rgba(255, 255, 255, 0.95);
+            border: none;
+            padding: 10px 14px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            width: 100%;
+            text-align: center;
+            font-size: 0.9rem;
+            white-space: nowrap;
+        }
+        
+        @media (max-width: 1024px) {
+            .controls {
+                position: relative;
+                top: 0;
+                left: 0;
+                max-width: 100%;
+                margin-bottom: 15px;
+                flex-direction: row;
+                flex-wrap: wrap;
+                justify-content: center;
+                gap: 10px;
+            }
+            
+            normalizeLongitude(latlng) {
+                // Normalize longitude to -180 to +180 range
+                let lng = latlng.lng;
+                while (lng > 180) lng -= 360;
+                while (lng < -180) lng += 360;
+                
+                return {
+                    lat: latlng.lat,
+                    lng: lng
+                };
+            }
+            
+            .control-btn {
+                min-width: 120px;
+                flex: 1;
+                max-width: 150px;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .controls {
+                flex-direction: column;
+            }
+            
+            .control-btn {
+                min-width: auto;
+                max-width: none;
+            }
+        }
+        
+        .control-btn:hover {
+            background: rgba(255, 255, 255, 1);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+        }
+        
+        .control-btn.active {
+            background: #3498db;
+            color: white;
+        }
+        
+        .control-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .route-info {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px 20px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+            min-width: 200px;
+            max-width: 300px;
+        }
+        
+        .route-info h3 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+            font-size: 1.1rem;
+        }
+        
+        .route-stat {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            font-size: 0.9rem;
+        }
+        
+        .route-stat strong {
+            color: #3498db;
+        }
+        
+        .loading {
+            color: #f39c12;
+            font-style: italic;
+        }
+        
+        .leaflet-popup-content-wrapper {
+            border-radius: 8px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+        }
+        
+        .leaflet-popup-content {
+            margin: 15px;
+            font-weight: 500;
+            color: #2c3e50;
+        }
+        
+        .status-indicator {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            z-index: 1000;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 8px 12px;
+            border-radius: 8px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            display: none;
+            font-size: 0.9rem;
+        }
+        
+        @media (max-width: 1024px) {
+            .status-indicator {
+                position: relative;
+                top: 0;
+                right: 0;
+                margin: 10px auto;
+                text-align: center;
+                max-width: 300px;
+            }
+        }
+        
+        .status-indicator.show {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>⚓ Marine Route Finder</h1>
+            <p>Advanced pathfinding with intelligent sea route calculation</p>
+        </div>
+        
+        <div class="map-container">
+            <div class="controls">
+                <button id="manualMode" class="control-btn active">📍 Manual</button>
+                <button id="seaRouteMode" class="control-btn">🌊 Sea Route</button>
+                <button id="clearRoute" class="control-btn">🗑️ Clear</button>
+                <button id="toggleView" class="control-btn">🌊 Toggle</button>
+                <button id="findRoute" class="control-btn" style="display: none;" disabled>🔍 Find Route</button>
+            </div>
+            
+            <div class="status-indicator" id="statusIndicator">
+                <span id="statusText">Ready</span>
+            </div>
+            
+            <div class="map-wrapper">
+                <div id="map"></div>
+            </div>
+            
+            <div class="route-info" id="routeInfo" style="display: none;">
+                <h3>🧭 Route Information</h3>
+                <div class="route-stat">
+                    <span>Distance:</span>
+                    <strong id="routeDistance">0 nm</strong>
+                </div>
+                <div class="route-stat">
+                    <span>Waypoints:</span>
+                    <strong id="waypointCount">0</strong>
+                </div>
+                <div class="route-stat">
+                    <span>Est. Time:</span>
+                    <strong id="estimatedTime">0h 0m</strong>
+                </div>
+                <div class="route-stat">
+                    <span>Type:</span>
+                    <strong id="routeType">Manual</strong>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaflet -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+    
+    <!-- Sea Routes Plugin -->
+    <script src="js/astar.js"></script>
+    <script src="js/curve.js"></script>
+    <script src="js/route.js"></script>
+
+    <script>
+        class MarineRouteFinder {
+            constructor() {
+                this.waypoints = [];
+                this.markers = [];
+                this.routePolylines = [];
+                this.mode = 'manual';
+                this.seaRoutePoints = [];
+                this.averageSpeed = 8;
+                this.currentView = 'satellite';
+                this.isCalculating = false;
+                
+                this.initMap();
+                this.initControls();
+            }
+            
+            normalizeLongitude(latlng) {
+                // Normalize longitude to -180 to +180 range
+                let lng = latlng.lng;
+                while (lng > 180) lng -= 360;
+                while (lng < -180) lng += 360;
+                
+                return {
+                    lat: latlng.lat,
+                    lng: lng
+                };
+            }
+            
+            initMap() {
+                this.map = L.map('map', {
+                    zoomControl: false
+                }).setView([40.7128, -74.0060], 6);
+                
+                L.control.zoom({
+                    position: 'bottomleft'
+                }).addTo(this.map);
+                
+                this.satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                    attribution: 'Tiles © Esri',
+                    maxZoom: 18
+                });
+                
+                this.nauticalLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© OpenStreetMap contributors',
+                    maxZoom: 18
+                });
+                
+                this.satelliteLayer.addTo(this.map);
+                this.map.on('click', (e) => this.handleMapClick(e));
+                
+                // Update wrapped markers when map moves or zooms
+                this.map.on('moveend', () => this.updateWrappedMarkersOnMove());
+                this.map.on('zoomend', () => this.updateWrappedMarkersOnMove());
+            }
+            
+            initControls() {
+                document.getElementById('manualMode').addEventListener('click', () => {
+                    this.setMode('manual');
+                });
+                
+                document.getElementById('seaRouteMode').addEventListener('click', () => {
+                    this.setMode('searoute');
+                });
+                
+                document.getElementById('clearRoute').addEventListener('click', () => {
+                    this.clearRoute();
+                });
+                
+                document.getElementById('toggleView').addEventListener('click', () => {
+                    this.toggleMapView();
+                });
+                
+                document.getElementById('findRoute').addEventListener('click', () => {
+                    this.calculateSeaRoute();
+                });
+            }
+            
+            setMode(mode) {
+                this.mode = mode;
+                this.clearRoute();
+                
+                const manualBtn = document.getElementById('manualMode');
+                const seaRouteBtn = document.getElementById('seaRouteMode');
+                const findBtn = document.getElementById('findRoute');
+                
+                manualBtn.classList.remove('active');
+                seaRouteBtn.classList.remove('active');
+                
+                if (mode === 'manual') {
+                    manualBtn.classList.add('active');
+                    findBtn.style.display = 'none';
+                    this.showStatus('Manual Mode: Click to add waypoints');
+                } else {
+                    seaRouteBtn.classList.add('active');
+                    findBtn.style.display = 'block';
+                    this.showStatus('Sea Route Mode: Click start point, then end point');
+                }
+            }
+            
+            handleMapClick(e) {
+                console.log('Map clicked:', e.latlng, 'Mode:', this.mode, 'Calculating:', this.isCalculating);
+                
+                if (this.isCalculating) {
+                    console.log('Ignoring click - currently calculating');
+                    return;
+                }
+                
+                try {
+                    if (this.mode === 'manual') {
+                        console.log('Adding manual waypoint');
+                        this.addManualWaypoint(e.latlng);
+                    } else {
+                        console.log('Adding sea route point');
+                        this.addSeaRoutePoint(e.latlng);
+                    }
+                } catch (error) {
+                    console.error('Error handling map click:', error);
+                }
+            }
+            
+            addManualWaypoint(latlng) {
+                const waypointIndex = this.waypoints.length;
+                // Store the original coordinates for calculations
+                this.waypoints.push(latlng);
+                
+                const isStart = waypointIndex === 0;
+                
+                // Create markers that wrap around the world
+                this.createWrappedMarkers(latlng, isStart, waypointIndex);
+                
+                if (this.waypoints.length > 1) {
+                    this.drawManualRoute();
+                }
+                
+                this.updateRouteInfo('Manual');
+            }
+            
+            addSeaRoutePoint(latlng) {
+                if (this.seaRoutePoints.length >= 2) {
+                    this.clearRoute();
+                }
+                
+                // Store the original coordinates for calculations
+                this.seaRoutePoints.push(latlng);
+                
+                const isStart = this.seaRoutePoints.length === 1;
+                
+                // Create markers that wrap around the world
+                this.createWrappedMarkers(latlng, isStart, this.seaRoutePoints.length - 1, true);
+                
+                if (this.seaRoutePoints.length === 1) {
+                    this.showStatus('Now click end point');
+                    document.getElementById('findRoute').disabled = true;
+                } else if (this.seaRoutePoints.length === 2) {
+                    this.showStatus('Ready to calculate sea route');
+                    document.getElementById('findRoute').disabled = false;
+                    setTimeout(() => this.calculateSeaRoute(), 500);
+                }
+            }
+            
+            createWrappedMarkers(latlng, isStart, index, isSeaRoute = false) {
+                const lng = latlng.lng;
+                const lat = latlng.lat;
+                
+                // Get current map bounds to determine visible longitude range
+                const bounds = this.map.getBounds();
+                const westBound = bounds.getWest();
+                const eastBound = bounds.getEast();
+                
+                // Calculate how many wraps we need to cover the visible area plus buffer
+                const bufferDegrees = 720; // Show wraps well beyond visible area
+                const startLng = westBound - bufferDegrees;
+                const endLng = eastBound + bufferDegrees;
+                
+                // Find the base longitude in the -180 to 180 range
+                let baseLng = lng;
+                while (baseLng > 180) baseLng -= 360;
+                while (baseLng < -180) baseLng += 360;
+                
+                // Create markers at all wrapped positions within the extended range
+                for (let wrappedLng = baseLng; wrappedLng <= endLng; wrappedLng += 360) {
+                    if (wrappedLng >= startLng) {
+                        this.createSingleMarker({lat: lat, lng: wrappedLng}, isStart, index, isSeaRoute, latlng);
+                    }
+                }
+                
+                // Also create markers going backwards
+                for (let wrappedLng = baseLng - 360; wrappedLng >= startLng; wrappedLng -= 360) {
+                    this.createSingleMarker({lat: lat, lng: wrappedLng}, isStart, index, isSeaRoute, latlng);
+                }
+            }
+            
+            createSingleMarker(position, isStart, index, isSeaRoute, originalLatlng) {
+                const marker = L.circleMarker(position, {
+                    radius: isSeaRoute ? 10 : 8,
+                    fillColor: isStart ? '#27ae60' : '#e74c3c',
+                    color: 'white',
+                    weight: 3,
+                    opacity: 1,
+                    fillOpacity: 1
+                }).addTo(this.map);
+                
+                const normalizedLatlng = this.normalizeLongitude(originalLatlng);
+                const pointType = isSeaRoute ? 
+                    (isStart ? 'Start Point' : 'End Point') :
+                    (isStart ? 'Start Point' : `Waypoint ${index}`);
+                
+                const popupContent = `<strong>🚢 ${pointType}</strong><br>Lat: ${normalizedLatlng.lat.toFixed(4)}<br>Lng: ${normalizedLatlng.lng.toFixed(4)}<br><small>Displayed at: ${position.lng.toFixed(1)}°</small>`;
+                
+                marker.bindPopup(popupContent);
+                this.markers.push(marker);
+            }
+            
+            updateWrappedMarkersOnMove() {
+                // Re-create all markers when the map moves to ensure infinite wrapping
+                const currentWaypoints = [...this.waypoints];
+                const currentSeaRoutePoints = [...this.seaRoutePoints];
+                
+                // Clear existing markers
+                this.markers.forEach(marker => this.map.removeLayer(marker));
+                this.markers = [];
+                
+                // Clear existing route lines
+                this.routePolylines.forEach(line => this.map.removeLayer(line));
+                this.routePolylines = [];
+                
+                // Re-create waypoint markers
+                currentWaypoints.forEach((waypoint, index) => {
+                    const isStart = index === 0;
+                    this.createWrappedMarkers(waypoint, isStart, index, false);
+                });
+                
+                // Re-create sea route markers
+                currentSeaRoutePoints.forEach((point, index) => {
+                    const isStart = index === 0;
+                    this.createWrappedMarkers(point, isStart, index, true);
+                });
+                
+                // Re-draw routes if they exist
+                if (currentWaypoints.length > 1 && this.mode === 'manual') {
+                    this.drawManualRoute();
+                }
+                
+                // Note: Sea routes are handled by the curve library, so they should automatically wrap
+                // If not, we might need to re-trigger the sea route calculation
+            }
+            
+            getShortestPathForPathfinding(point1, point2) {
+                // For pathfinding algorithms, we need both points in the same 360° window
+                // We'll choose the window that gives us the shortest path
+                
+                // Calculate the direct difference
+                const directDiff = point2.lng - point1.lng;
+                
+                // Calculate wrapped alternatives
+                const wrapRightDiff = directDiff - 360;
+                const wrapLeftDiff = directDiff + 360;
+                
+                // Find which gives the shortest path
+                let shortestDiff = directDiff;
+                if (Math.abs(wrapRightDiff) < Math.abs(shortestDiff)) {
+                    shortestDiff = wrapRightDiff;
+                }
+                if (Math.abs(wrapLeftDiff) < Math.abs(shortestDiff)) {
+                    shortestDiff = wrapLeftDiff;
+                }
+                
+                // Adjust point2 to be in the same window as point1 for the shortest path
+                const adjustedPoint2 = {
+                    lat: point2.lat,
+                    lng: point1.lng + shortestDiff
+                };
+                
+                return {
+                    start: point1,
+                    end: adjustedPoint2
+                };
+            }
+            
+            getShortestPath(point1, point2) {
+                // For display purposes, normalize to standard coordinates
+                const p1 = this.normalizeLongitude(point1);
+                const p2 = this.normalizeLongitude(point2);
+                
+                // Calculate direct difference
+                const directDiff = p2.lng - p1.lng;
+                
+                // Calculate wrapped differences
+                const wrapRightDiff = directDiff - 360;
+                const wrapLeftDiff = directDiff + 360;
+                
+                // Find which difference has the smallest absolute value
+                let shortestDiff = directDiff;
+                if (Math.abs(wrapRightDiff) < Math.abs(shortestDiff)) {
+                    shortestDiff = wrapRightDiff;
+                }
+                if (Math.abs(wrapLeftDiff) < Math.abs(shortestDiff)) {
+                    shortestDiff = wrapLeftDiff;
+                }
+                
+                // Create the shortest path endpoints
+                const shortestPoint2 = {
+                    lat: p2.lat,
+                    lng: p1.lng + shortestDiff
+                };
+                
+                return {
+                    start: p1,
+                    end: shortestPoint2
+                };
+            }
+            
+            calculateShortestLongitudeDifference(lng1, lng2) {
+                // Calculate the shortest angular distance between two longitudes
+                const n1 = this.normalizeLongitude({lat: 0, lng: lng1}).lng;
+                const n2 = this.normalizeLongitude({lat: 0, lng: lng2}).lng;
+                
+                let diff = n2 - n1;
+                
+                // Find the shortest way around
+                if (diff > 180) diff -= 360;
+                if (diff < -180) diff += 360;
+                
+                return diff;
+            }
+            
+            async calculateSeaRoute() {
+                if (this.seaRoutePoints.length !== 2 || this.isCalculating) return;
+                
+                this.isCalculating = true;
+                this.showStatus('Calculating optimal sea route...', true);
+                document.getElementById('findRoute').disabled = true;
+                
+                try {
+                    console.log('=== SEA ROUTE CALCULATION DEBUG ===');
+                    console.log('Original clicked points:', this.seaRoutePoints);
+                    
+                    // Calculate what the shortest path SHOULD be
+                    const expectedPath = this.getShortestPath(this.seaRoutePoints[0], this.seaRoutePoints[1]);
+                    const expectedDistance = this.calculateDistance(expectedPath.start, expectedPath.end);
+                    console.log('Expected shortest path:', expectedPath);
+                    console.log('Expected distance (nm):', expectedDistance);
+                    
+                    let successfulRoute = null;
+                    let routePoints = null;
+                    
+                    // Try multiple approaches to find one that works
+                    
+                    // Approach 1: Use original coordinates as-is
+                    console.log('Trying approach 1: Original coordinates');
+                    let source = [this.seaRoutePoints[0].lat, this.seaRoutePoints[0].lng];
+                    let destination = [this.seaRoutePoints[1].lat, this.seaRoutePoints[1].lng];
+                    console.log('Source:', source, 'Destination:', destination);
+                    
+                    try {
+                        routePoints = L.route(source, destination);
+                        console.log('Approach 1 route points:', routePoints);
+                        
+                        if (routePoints && routePoints.length > 0) {
+                            // Check if this route makes sense (not way longer than expected)
+                            let totalDistance = 0;
+                            for (let i = 0; i < routePoints.length - 1; i++) {
+                                const p1 = {lat: routePoints[i][0], lng: routePoints[i][1]};
+                                const p2 = {lat: routePoints[i+1][0], lng: routePoints[i+1][1]};
+                                totalDistance += this.calculateDistance(p1, p2);
+                            }
+                            console.log('Approach 1 total distance:', totalDistance);
+                            
+                            if (totalDistance < expectedDistance * 3) { // Allow some reasonable deviation
+                                let curve = L.pathCurve(source, destination, {
+                                    color: '#27ae60',
+                                    weight: 4,
+                                    opacity: 0.8
+                                });
+                                curve.addTo(this.map);
+                                this.routePolylines.push(curve);
+                                successfulRoute = 1;
+                                console.log('Approach 1 succeeded - reasonable route distance');
+                            } else {
+                                console.log('Approach 1 rejected - route too long, trying other approaches');
+                            }
+                        }
+                    } catch (e1) {
+                        console.log('Approach 1 failed:', e1);
+                    }
+                    
+                    if (!successfulRoute) {
+                        // Approach 2: Try same-window coordinates
+                        console.log('Trying approach 2: Same-window coordinates');
+                        const pathfindingPath = this.getShortestPathForPathfinding(this.seaRoutePoints[0], this.seaRoutePoints[1]);
+                        source = [pathfindingPath.start.lat, pathfindingPath.start.lng];
+                        destination = [pathfindingPath.end.lat, pathfindingPath.end.lng];
+                        console.log('Same-window Source:', source, 'Destination:', destination);
+                        
+                        try {
+                            routePoints = L.route(source, destination);
+                            console.log('Approach 2 route points:', routePoints);
+                            
+                            if (routePoints && routePoints.length > 0) {
+                                let curve = L.pathCurve(source, destination, {
+                                    color: '#27ae60',
+                                    weight: 4,
+                                    opacity: 0.8
+                                });
+                                curve.addTo(this.map);
+                                this.routePolylines.push(curve);
+                                successfulRoute = 2;
+                                console.log('Approach 2 succeeded');
+                            }
+                        } catch (e2) {
+                            console.log('Approach 2 failed:', e2);
+                        }
+                    }
+                    
+                    if (!successfulRoute) {
+                        // Approach 3: Fallback to direct great circle route
+                        console.log('Trying approach 3: Direct great circle fallback');
+                        source = [expectedPath.start.lat, expectedPath.start.lng];
+                        destination = [expectedPath.end.lat, expectedPath.end.lng];
+                        console.log('Great circle Source:', source, 'Destination:', destination);
+                        
+                        // Create a simple direct route
+                        routePoints = [source, destination];
+                        
+                        // Draw as a simple polyline since pathfinding failed
+                        const directLine = L.polyline([expectedPath.start, expectedPath.end], {
+                            color: '#27ae60',
+                            weight: 4,
+                            opacity: 0.8,
+                            dashArray: '15, 10'
+                        }).addTo(this.map);
+                        
+                        this.routePolylines.push(directLine);
+                        successfulRoute = 3;
+                        console.log('Approach 3: Direct route fallback used');
+                    }
+                    
+                    // Check if we got valid route points
+                    if (!routePoints || routePoints.length === 0) {
+                        throw new Error('All pathfinding approaches failed');
+                    }
+                    
+                    this.waypoints = routePoints.map(point => ({lat: point[0], lng: point[1]}));
+                    
+                    this.updateRouteInfo('Sea Route');
+                    this.showStatus(`Sea route calculated (method ${successfulRoute}) with ${routePoints.length} waypoints`);
+                    
+                    // Add waypoint markers for intermediate points
+                    for (let i = 1; i < routePoints.length - 1; i++) {
+                        const waypoint = {lat: routePoints[i][0], lng: routePoints[i][1]};
+                        const waypointMarker = L.circleMarker(waypoint, {
+                            radius: 4,
+                            fillColor: '#f39c12',
+                            color: 'white',
+                            weight: 2,
+                            opacity: 1,
+                            fillOpacity: 1
+                        }).addTo(this.map);
+                        
+                        waypointMarker.bindPopup(`<strong>⚓ Route Point ${i}</strong><br>Sea route waypoint`);
+                        this.routePolylines.push(waypointMarker);
+                    }
+                    
+                } catch (error) {
+                    console.error('Sea route calculation failed completely:', error);
+                    console.error('Error stack:', error.stack);
+                    this.showStatus('Sea route calculation failed - check console for details');
+                } finally {
+                    this.isCalculating = false;
+                    document.getElementById('findRoute').disabled = false;
+                }
+            }
+            
+            drawManualRoute() {
+                this.routePolylines.forEach(line => this.map.removeLayer(line));
+                this.routePolylines = [];
+                
+                for (let i = 0; i < this.waypoints.length - 1; i++) {
+                    // Use shortest path for route segments
+                    const shortestPath = this.getShortestPath(this.waypoints[i], this.waypoints[i + 1]);
+                    this.drawWrappedRouteSegment(shortestPath.start, shortestPath.end, '#3498db');
+                }
+            }
+            
+            drawWrappedRouteSegment(start, end, color) {
+                // Get current map bounds to determine visible longitude range
+                const bounds = this.map.getBounds();
+                const westBound = bounds.getWest();
+                const eastBound = bounds.getEast();
+                
+                // Calculate buffer for routes beyond visible area
+                const bufferDegrees = 720;
+                const startLng = westBound - bufferDegrees;
+                const endLng = eastBound + bufferDegrees;
+                
+                // Calculate the longitude difference for the route
+                const lngDiff = end.lng - start.lng;
+                
+                // Find the base longitude for the start point
+                let baseStartLng = start.lng;
+                while (baseStartLng > 180) baseStartLng -= 360;
+                while (baseStartLng < -180) baseStartLng += 360;
+                
+                // Create route segments at all wrapped positions within the extended range
+                for (let wrappedStartLng = baseStartLng; wrappedStartLng <= endLng; wrappedStartLng += 360) {
+                    if (wrappedStartLng >= startLng) {
+                        const wrappedStart = {lat: start.lat, lng: wrappedStartLng};
+                        const wrappedEnd = {lat: end.lat, lng: wrappedStartLng + lngDiff};
+                        this.drawSingleRouteSegment(wrappedStart, wrappedEnd, color);
+                    }
+                }
+                
+                // Also create segments going backwards
+                for (let wrappedStartLng = baseStartLng - 360; wrappedStartLng >= startLng; wrappedStartLng -= 360) {
+                    const wrappedStart = {lat: start.lat, lng: wrappedStartLng};
+                    const wrappedEnd = {lat: end.lat, lng: wrappedStartLng + lngDiff};
+                    this.drawSingleRouteSegment(wrappedStart, wrappedEnd, color);
+                }
+            }
+            
+            drawSingleRouteSegment(start, end, color) {
+                const polyline = L.polyline([start, end], {
+                    color: color,
+                    weight: 4,
+                    opacity: 0.8,
+                    dashArray: '10, 5'
+                }).addTo(this.map);
+                
+                this.routePolylines.push(polyline);
+                
+                // Add distance label for the segment
+                const midLat = (start.lat + end.lat) / 2;
+                const midLng = (start.lng + end.lng) / 2;
+                const distance = this.calculateDistance(start, end);
+                
+                const distanceMarker = L.marker([midLat, midLng], {
+                    icon: L.divIcon({
+                        className: 'distance-label',
+                        html: `<div style="background: rgba(52,152,219,0.9); color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: bold;">${distance.toFixed(1)} nm</div>`,
+                        iconSize: [60, 20],
+                        iconAnchor: [30, 10]
+                    })
+                }).addTo(this.map);
+                
+                this.routePolylines.push(distanceMarker);
+            }
+            
+            calculateDistance(latlng1, latlng2) {
+                const R = 3440.065; // Earth's radius in nautical miles
+                
+                // Use the shortest angular distance for longitude difference
+                const lngDiff = this.calculateShortestLongitudeDifference(latlng1.lng, latlng2.lng);
+                const adjustedLng2 = latlng1.lng + lngDiff;
+                
+                const dLat = this.toRad(latlng2.lat - latlng1.lat);
+                const dLon = this.toRad(adjustedLng2 - latlng1.lng);
+                const lat1 = this.toRad(latlng1.lat);
+                const lat2 = this.toRad(latlng2.lat);
+                
+                const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                        Math.sin(dLon/2) * Math.sin(dLon/2) * Math.cos(lat1) * Math.cos(lat2);
+                const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+                return R * c;
+            }
+            
+            toRad(degrees) {
+                return degrees * (Math.PI / 180);
+            }
+            
+            getTotalDistance() {
+                let total = 0;
+                for (let i = 0; i < this.waypoints.length - 1; i++) {
+                    total += this.calculateDistance(this.waypoints[i], this.waypoints[i + 1]);
+                }
+                return total;
+            }
+            
+            updateRouteInfo(type) {
+                const routeInfo = document.getElementById('routeInfo');
+                
+                if (this.waypoints.length === 0) {
+                    routeInfo.style.display = 'none';
+                    return;
+                }
+                
+                routeInfo.style.display = 'block';
+                
+                const totalDistance = this.getTotalDistance();
+                const estimatedTime = totalDistance / this.averageSpeed;
+                const hours = Math.floor(estimatedTime);
+                const minutes = Math.floor((estimatedTime - hours) * 60);
+                
+                document.getElementById('routeDistance').textContent = `${totalDistance.toFixed(1)} nm`;
+                document.getElementById('waypointCount').textContent = this.waypoints.length;
+                document.getElementById('estimatedTime').textContent = `${hours}h ${minutes}m`;
+                document.getElementById('routeType').textContent = type;
+            }
+            
+            showStatus(message, loading = false) {
+                const indicator = document.getElementById('statusIndicator');
+                const text = document.getElementById('statusText');
+                
+                text.textContent = message;
+                text.className = loading ? 'loading' : '';
+                indicator.classList.add('show');
+                
+                if (!loading) {
+                    setTimeout(() => {
+                        indicator.classList.remove('show');
+                    }, 3000);
+                }
+            }
+            
+            clearRoute() {
+                this.markers.forEach(marker => this.map.removeLayer(marker));
+                this.markers = [];
+                
+                this.routePolylines.forEach(line => this.map.removeLayer(line));
+                this.routePolylines = [];
+                
+                this.waypoints = [];
+                this.seaRoutePoints = [];
+                
+                this.updateRouteInfo(this.mode === 'manual' ? 'Manual' : 'Sea Route');
+                document.getElementById('findRoute').disabled = true;
+                
+                if (this.mode === 'searoute') {
+                    this.showStatus('Sea Route Mode: Click start point, then end point');
+                }
+            }
+            
+            toggleMapView() {
+                if (this.currentView === 'satellite') {
+                    this.map.removeLayer(this.satelliteLayer);
+                    this.map.addLayer(this.nauticalLayer);
+                    this.currentView = 'nautical';
+                    document.getElementById('toggleView').textContent = '🛰️ Satellite';
+                } else {
+                    this.map.removeLayer(this.nauticalLayer);
+                    this.map.addLayer(this.satelliteLayer);
+                    this.currentView = 'satellite';
+                    document.getElementById('toggleView').textContent = '🌊 Nautical';
+                }
+            }
+        }
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            new MarineRouteFinder();
+        });
+    </script>
+</body>
+</html>
